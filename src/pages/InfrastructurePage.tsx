@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { InfrastructureNode, DataFlowLink } from '../types';
 import { ThreeInfrastructureViewer } from '../components/three/ThreeInfrastructureViewer';
+import { apiService } from '../services/apiService';
 
 interface InfrastructurePageProps {
   nodes: InfrastructureNode[];
@@ -110,6 +111,7 @@ export const InfrastructurePage: React.FC<InfrastructurePageProps> = ({
           selectedNodeId={selectedNodeId}
           onSelectNode={onSelectNode}
           onQuarantineNode={onQuarantineNode}
+          onSolveDeviceProblem={(id) => apiService.solveDeviceProblem(id)}
           onNavigateToDetections={() => onNavigate('/detections')}
           onNavigateToRecommendations={() => onNavigate('/recommendations')}
           reducedMotion={reducedMotion}

@@ -1,5 +1,20 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { 
+  Flame, 
+  AlertTriangle, 
+  Zap, 
+  ShieldCheck, 
+  ArrowRight, 
+  Lock, 
+  Unlock, 
+  CheckCircle2, 
+  Wrench, 
+  ShieldAlert, 
+  Sparkles,
+  Activity,
+  X
+} from 'lucide-react';
 import { InfrastructureNode, DataFlowLink, ViewerQuality } from '../../types';
 import { ViewerControls } from './ViewerControls';
 import { AssetDetailPanel } from './AssetDetailPanel';
@@ -11,6 +26,7 @@ interface ThreeInfrastructureViewerProps {
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string | null) => void;
   onQuarantineNode: (nodeId: string) => void;
+  onSolveDeviceProblem?: (nodeId: string) => void;
   onNavigateToDetections?: () => void;
   onNavigateToRecommendations?: () => void;
   qualityPreference?: ViewerQuality;
@@ -25,6 +41,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
   selectedNodeId,
   onSelectNode,
   onQuarantineNode,
+  onSolveDeviceProblem,
   onNavigateToDetections,
   onNavigateToRecommendations,
   qualityPreference = 'auto',
@@ -867,6 +884,88 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           <span className="font-bold tracking-tight">360° AUTO-ROTATION ACTIVE</span>
           <span className="text-slate-400 font-bold ml-1">[{Math.round(currentAzimuth)}°]</span>
+        </div>
+      )}
+
+      {/* 3D TOUCH DIAGNOSTIC OVERLAY: WHY THIS THREAT IS HAPPENING CARD */}
+      {!is2DMode && selectedNode && (
+        <div className="absolute top-3 left-4 z-20 max-w-sm w-full bg-slate-950/95 border border-red-500/70 rounded-xl p-3.5 shadow-2xl backdrop-blur-xl animate-fadeIn space-y-2 text-slate-100 select-none">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-red-950/90 border border-red-500/50 flex items-center justify-center text-red-400">
+                <Flame className="w-4 h-4 animate-pulse" />
+              </div>
+              <div>
+                <div className="text-[10px] font-mono font-bold text-red-400 uppercase tracking-wider flex items-center gap-1">
+                  <span>TOUCH DIAGNOSTIC</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                </div>
+                <div className="text-xs font-bold text-white leading-tight">{selectedNode.name}</div>
+              </div>
+            </div>
+            <button
+              onClick={() => onSelectNode(null)}
+              className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
+              aria-label="Close Touch Diagnostic"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* WHY THE THREAT IS HAPPENING BREAKDOWN */}
+          <div className="space-y-2 text-xs">
+            <div className="p-2.5 rounded-lg bg-red-950/30 border border-red-900/50 space-y-1">
+              <div className="text-[10px] font-mono font-bold text-red-300 uppercase flex items-center justify-between">
+                <span>Why Threat Is Happening</span>
+                <span className="px-1.5 py-0.2 rounded bg-red-950 border border-red-800 font-mono text-[9px]">
+                  {selectedNode.vulnerabilities.length > 0 ? selectedNode.vulnerabilities[0].cve : 'RISK EXPOSURE'}
+                </span>
+              </div>
+              <p className="text-slate-100 font-semibold text-[11px]">
+                {selectedNode.vulnerabilities.length > 0
+                  ? selectedNode.vulnerabilities[0].title
+                  : `Node risk posture (${selectedNode.riskScore}/100) elevated via active topology links.`}
+              </p>
+              <p className="text-slate-300 text-[10px] leading-relaxed bg-black/40 p-1.5 rounded border border-white/5">
+                {selectedNode.vulnerabilities.length > 0
+                  ? selectedNode.vulnerabilities[0].description
+                  : `Device is exposed to high-volume unencrypted data throughput.`}
+              </p>
+            </div>
+
+            {/* Attack Propagation Vector */}
+            <div className="p-2 rounded-lg bg-slate-900/80 border border-slate-800">
+              <div className="text-[10px] font-mono text-slate-400 uppercase mb-1">Attack Propagation Path</div>
+              <div className="flex items-center gap-1.5 font-mono text-[10px] text-cyan-300 overflow-x-auto">
+                <span>Ingress</span>
+                <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
+                <span className="text-amber-400">Trigger</span>
+                <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
+                <span className="text-red-400 font-bold">{selectedNode.name}</span>
+              </div>
+            </div>
+
+            {/* Quick Interactive Actions directly inside 3D Viewport */}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => onQuarantineNode(selectedNode.id)}
+                className="flex-1 py-1.5 bg-red-600/90 hover:bg-red-500 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-md cursor-pointer transition-colors"
+              >
+                <Lock className="w-3 h-3" />
+                <span>{selectedNode.status === 'quarantined' ? 'Quarantined' : 'Quarantine'}</span>
+              </button>
+
+              {onSolveDeviceProblem && (
+                <button
+                  onClick={() => onSolveDeviceProblem(selectedNode.id)}
+                  className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-md cursor-pointer transition-colors"
+                >
+                  <Wrench className="w-3 h-3" />
+                  <span>Solve Problem</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

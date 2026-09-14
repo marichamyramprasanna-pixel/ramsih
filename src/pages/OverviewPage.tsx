@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { InfrastructureNode, DataFlowLink, EnterpriseRiskSummary } from '../types';
 import { ThreeInfrastructureViewer } from '../components/three/ThreeInfrastructureViewer';
+import { apiService } from '../services/apiService';
 
 interface OverviewPageProps {
   nodes: InfrastructureNode[];
@@ -20,6 +21,7 @@ interface OverviewPageProps {
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
   onQuarantineNode: (id: string) => void;
+  onSolveDeviceProblem?: (id: string) => void;
   riskSummary: EnterpriseRiskSummary;
   onNavigate: (route: string) => void;
   reducedMotion: boolean;
@@ -31,6 +33,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
   selectedNodeId,
   onSelectNode,
   onQuarantineNode,
+  onSolveDeviceProblem,
   riskSummary,
   onNavigate,
   reducedMotion
@@ -150,6 +153,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             selectedNodeId={selectedNodeId}
             onSelectNode={onSelectNode}
             onQuarantineNode={onQuarantineNode}
+            onSolveDeviceProblem={onSolveDeviceProblem || ((id) => apiService.solveDeviceProblem(id))}
             onNavigateToDetections={() => onNavigate('/detections')}
             onNavigateToRecommendations={() => onNavigate('/recommendations')}
             reducedMotion={reducedMotion}

@@ -13,7 +13,13 @@ import {
   AlertOctagon, 
   CheckCircle2, 
   Activity,
-  ArrowRight
+  ArrowRight,
+  Flame,
+  AlertTriangle,
+  Zap,
+  GitCommit,
+  Wrench,
+  Layers
 } from 'lucide-react';
 
 interface AssetDetailPanelProps {
@@ -76,6 +82,73 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
       {/* Scrollable Body */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+
+        {/* WHY THIS THREAT IS HAPPENING - ROOT CAUSE DIAGNOSTIC CARD */}
+        <div className={`p-3.5 rounded-xl border space-y-2.5 transition-all ${
+          node.riskScore >= 70
+            ? 'bg-red-950/40 border-red-800/80 text-red-200'
+            : node.riskScore >= 40
+            ? 'bg-amber-950/40 border-amber-800/80 text-amber-200'
+            : 'bg-slate-900/90 border-slate-800 text-slate-300'
+        }`}>
+          <div className="flex items-center justify-between pb-1 border-b border-white/10">
+            <div className="flex items-center gap-1.5 font-bold tracking-tight text-xs uppercase">
+              {node.riskScore >= 70 ? (
+                <Flame className="w-4 h-4 text-red-400 animate-pulse" />
+              ) : node.riskScore >= 40 ? (
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              )}
+              <span>Why This Threat Is Happening</span>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/40 border border-white/10 font-bold">
+              {node.vulnerabilities.length > 0 ? node.vulnerabilities[0].cve : 'POSTURE-AUDIT'}
+            </span>
+          </div>
+
+          {node.vulnerabilities.length > 0 ? (
+            <div className="space-y-2 text-[11px]">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-mono font-semibold">Primary Vulnerability & Root Cause</span>
+                <p className="font-semibold text-white mt-0.5">{node.vulnerabilities[0].title}</p>
+                <p className="text-slate-300 text-[11px] leading-relaxed mt-1 bg-black/30 p-2 rounded border border-white/5">
+                  {node.vulnerabilities[0].description}
+                </p>
+              </div>
+
+              {/* Exploit & Attack Vector Flow */}
+              <div className="pt-1">
+                <span className="text-slate-400 block text-[10px] uppercase font-mono font-semibold mb-1">Attack Propagation Flow</span>
+                <div className="flex items-center gap-1.5 p-2 bg-slate-950/80 rounded border border-slate-800 font-mono text-[10px] text-cyan-300 overflow-x-auto">
+                  <span>Edge Ingress</span>
+                  <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
+                  <span className="text-amber-300">Exploit Trigger</span>
+                  <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
+                  <span className="text-red-400 font-bold">{node.name}</span>
+                </div>
+              </div>
+
+              {/* How to Fix / Mitigation Plan */}
+              <div className="pt-1">
+                <span className="text-slate-400 block text-[10px] uppercase font-mono font-semibold mb-0.5">Recommended Resolution</span>
+                <div className="flex items-start gap-1.5 text-emerald-300 text-[11px] bg-emerald-950/30 p-2 rounded border border-emerald-800/40">
+                  <Wrench className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <span>{node.vulnerabilities[0].remediation}</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-slate-300 space-y-1.5">
+              <p>
+                <strong>Root Cause:</strong> No active CVE vulnerabilities detected on this node.
+              </p>
+              <p className="text-[10px] text-slate-400">
+                Risk score ({node.riskScore}/100) is maintained via strict zero-trust network segmentation policies and hardened security configurations.
+              </p>
+            </div>
+          )}
+        </div>
         {/* Risk & Loss Overview Grid */}
         <div className="grid grid-cols-2 gap-2.5">
           <div className="p-3 bg-slate-950/60 border border-slate-800 rounded-lg">
