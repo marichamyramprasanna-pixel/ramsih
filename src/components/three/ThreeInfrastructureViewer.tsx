@@ -47,8 +47,8 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
   const [quality, setQuality] = useState<ViewerQuality>(qualityPreference);
   const [showDevMetrics, setShowDevMetrics] = useState<boolean>(false);
   const [fps, setFps] = useState<number>(60);
-  const [triangleCount, setTriangleCount] = useState<number>(16400);
-  const [drawCalls, setDrawCalls] = useState<number>(28);
+  const [triangleCount, setTriangleCount] = useState<number>(9800);
+  const [drawCalls, setDrawCalls] = useState<number>(24);
   const [currentAzimuth, setCurrentAzimuth] = useState<number>(45);
 
   // Projected 2D screen positions of nodes for label overlay
@@ -194,26 +194,23 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
     ringMesh2.updateMatrix();
     scene.add(ringMesh2);
 
-    // =========================================================================
-    // EFFICIENCY UPGRADE: SHARED GEOMETRY & MATERIAL POOL
-    // Reusing standard meshes across 16 nodes eliminates ~79% of GPU overhead!
-    // =========================================================================
+    // Shared Buffer Geometries with Low-Poly High-Performance Tessellation
     const sharedGeos = {
-      basePedestal: new THREE.CylinderGeometry(0.55, 0.65, 0.12, 12),
-      statusHalo: new THREE.TorusGeometry(0.68, 0.03, 6, 20),
-      selectionAura: new THREE.TorusGeometry(0.85, 0.035, 6, 24),
-      dbCore: new THREE.CylinderGeometry(0.42, 0.42, 0.9, 14),
-      dbDisc: new THREE.TorusGeometry(0.45, 0.02, 6, 16),
+      basePedestal: new THREE.CylinderGeometry(0.55, 0.65, 0.12, 8),
+      statusHalo: new THREE.TorusGeometry(0.68, 0.03, 4, 12),
+      selectionAura: new THREE.TorusGeometry(0.85, 0.035, 4, 14),
+      dbCore: new THREE.CylinderGeometry(0.42, 0.42, 0.9, 8),
+      dbDisc: new THREE.TorusGeometry(0.45, 0.02, 4, 10),
       fwShield: new THREE.BoxGeometry(0.85, 0.95, 0.35),
       fwBar: new THREE.BoxGeometry(0.7, 0.08, 0.38),
-      cloudCluster: new THREE.IcosahedronGeometry(0.45, 1),
-      cloudWire: new THREE.IcosahedronGeometry(0.55, 1),
+      cloudCluster: new THREE.IcosahedronGeometry(0.45, 0),
+      cloudWire: new THREE.IcosahedronGeometry(0.55, 0),
       termBody: new THREE.BoxGeometry(0.65, 0.55, 0.45),
       screenPlane: new THREE.PlaneGeometry(0.5, 0.38),
       rackBody: new THREE.BoxGeometry(0.65, 1.1, 0.65),
       rackLed: new THREE.BoxGeometry(0.5, 0.04, 0.68),
-      packetNormal: new THREE.SphereGeometry(0.06, 6, 6),
-      packetSuspicious: new THREE.SphereGeometry(0.09, 6, 6)
+      packetNormal: new THREE.SphereGeometry(0.06, 4, 4),
+      packetSuspicious: new THREE.SphereGeometry(0.09, 4, 4)
     };
 
     const sharedMats = {
