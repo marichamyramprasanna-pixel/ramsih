@@ -2,8 +2,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Retrieve credentials from environment variables or custom runtime storage
 export function getSupabaseCredentials(): { url: string; key: string } {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
+  const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
 
   const storedUrl = localStorage.getItem('aegis_supabase_url') || '';
   const storedKey = localStorage.getItem('aegis_supabase_key') || '';
@@ -17,7 +17,6 @@ export function getSupabaseCredentials(): { url: string; key: string } {
 export function saveSupabaseCredentials(url: string, key: string): void {
   localStorage.setItem('aegis_supabase_url', url.trim());
   localStorage.setItem('aegis_supabase_key', key.trim());
-  // Re-initialize client singleton
   initSupabaseClient();
 }
 
@@ -77,7 +76,6 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
   try {
     const { data, error } = await client.from('nodes').select('id').limit(1);
     if (error) {
-      // If table doesn't exist yet, check auth API health
       const { error: authError } = await client.auth.getSession();
       if (authError) {
         return { success: false, message: `Auth connection error: ${authError.message}` };
