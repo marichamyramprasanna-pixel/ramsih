@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { 
+  AlertTriangle, 
+  Zap, 
+  ShieldCheck, 
+  Flame, 
+  ShieldAlert, 
+  Radio, 
+  Activity 
+} from 'lucide-react';
 import { InfrastructureNode, DataFlowLink, ViewerQuality } from '../../types';
 import { ViewerControls } from './ViewerControls';
 import { AssetDetailPanel } from './AssetDetailPanel';
@@ -51,8 +60,18 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
   const [drawCalls, setDrawCalls] = useState<number>(24);
   const [currentAzimuth, setCurrentAzimuth] = useState<number>(45);
 
-  // Projected 2D screen positions of nodes for label overlay
-  const [projectedLabels, setProjectedLabels] = useState<{ id: string; name: string; x: number; y: number; risk: number; visible: boolean }[]>([]);
+  // Projected 2D screen positions of nodes for label overlay with threat details
+  const [projectedLabels, setProjectedLabels] = useState<{ 
+    id: string; 
+    name: string; 
+    x: number; 
+    y: number; 
+    risk: number; 
+    visible: boolean;
+    threatName?: string;
+    cve?: string;
+    severity?: string;
+  }[]>([]);
 
   // Three.js internal references
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -199,6 +218,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
       basePedestal: new THREE.CylinderGeometry(0.55, 0.65, 0.12, 8),
       statusHalo: new THREE.TorusGeometry(0.68, 0.03, 4, 12),
       selectionAura: new THREE.TorusGeometry(0.85, 0.035, 4, 14),
+      threatBeacon: new THREE.CylinderGeometry(0.35, 0.5, 2.5, 8, 1, true),
       dbCore: new THREE.CylinderGeometry(0.42, 0.42, 0.9, 8),
       dbDisc: new THREE.TorusGeometry(0.45, 0.02, 4, 10),
       fwShield: new THREE.BoxGeometry(0.85, 0.95, 0.35),
@@ -210,7 +230,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
       rackBody: new THREE.BoxGeometry(0.65, 1.1, 0.65),
       rackLed: new THREE.BoxGeometry(0.5, 0.04, 0.68),
       packetNormal: new THREE.SphereGeometry(0.06, 4, 4),
-      packetSuspicious: new THREE.SphereGeometry(0.09, 4, 4)
+      packetSuspicious: new THREE.SphereGeometry(0.11, 6, 6)
     };
 
     const sharedMats = {
@@ -220,15 +240,44 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
       cloudMetal: new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.4 }),
       termMetal: new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.5 }),
       rackMetal: new THREE.MeshStandardMaterial({ color: 0x090d16, metalness: 0.9, roughness: 0.2 }),
-      // Risk materials
+      // Risk & Threat Beacon Materials
       emerald: new THREE.MeshBasicMaterial({ color: 0x10b981 }),
       amber: new THREE.MeshBasicMaterial({ color: 0xeab308 }),
       orange: new THREE.MeshBasicMaterial({ color: 0xf97316 }),
       red: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
       quarantined: new THREE.MeshBasicMaterial({ color: 0x64748b }),
+      threatBeaconRed: new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.38, side: THREE.DoubleSide }),
+      threatBeaconAmber: new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.28, side: THREE.DoubleSide }),
       packetNormal: new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
       packetSuspicious: new THREE.MeshBasicMaterial({ color: 0xef4444 })
     };
+
+    // Ambient Cyber Floating Particle Field Effect
+    const particleCount = 200;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    for (let p = 0; p < particleCount; p++) {
+      particlePositions[p * 3] = (Math.random() - 0.5) * 26;
+      particlePositions[p * 3 + 1] = Math.random() * 7.5 + 0.2;
+      particlePositions[p * 3 + 2] = (Math.random() - 0.5) * 26;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    const particleMat = new THREE.PointsMaterial({
+      size: 0.08,
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.55
+    });
+    const particleSystem = new THREE.Points(particleGeo, particleMat);
+    scene.add(particleSystem);
+
+    // Floor Cyber Scanning Radar Wave Effect
+    const scanGeo = new THREE.RingGeometry(0.1, 0.25, 32);
+    const scanMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+    const scanMesh = new THREE.Mesh(scanGeo, scanMat);
+    scanMesh.rotation.x = Math.PI / 2;
+    scanMesh.position.y = -0.03;
+    scene.add(scanMesh);
 
     const getRiskMaterial = (riskScore: number, status: string) => {
       if (status === 'quarantined') return sharedMats.quarantined;
@@ -337,6 +386,18 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
           ledMesh.updateMatrix();
           nodeGroup.add(ledMesh);
         }
+      }
+
+      // Vertical 3D Threat Light Beacon for High/Critical Threat Nodes
+      if (node.riskScore >= 60 && node.status !== 'quarantined') {
+        const isCritical = node.riskScore >= 80;
+        const beaconMesh = new THREE.Mesh(
+          sharedGeos.threatBeacon,
+          isCritical ? sharedMats.threatBeaconRed : sharedMats.threatBeaconAmber
+        );
+        beaconMesh.position.y = 1.35;
+        beaconMesh.name = 'threatBeacon';
+        nodeGroup.add(beaconMesh);
       }
 
       // Selection Halo
@@ -637,7 +698,23 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         setCurrentAzimuth(currentDeg);
       }
 
-      // Subtle pulse on critical risk halos & dynamic rotating meshes
+      // Animate Ambient Cyber Particle Field
+      if (particleSystem) {
+        particleSystem.rotation.y += 0.0004;
+      }
+
+      // Animate Floor Scanning Radar Wave
+      if (scanMesh && scanMat) {
+        scanMesh.scale.x += 0.08;
+        scanMesh.scale.y += 0.08;
+        scanMat.opacity = Math.max(0, 0.65 - (scanMesh.scale.x / 18.0) * 0.65);
+        if (scanMesh.scale.x > 18.0) {
+          scanMesh.scale.set(0.1, 0.1, 0.1);
+          scanMat.opacity = 0.65;
+        }
+      }
+
+      // Subtle pulse on critical risk halos, threat light beacons & dynamic rotating meshes
       const pulseVal = Math.sin(time * 0.005) * 0.2 + 0.8;
       nodeMeshesRef.current.forEach((mesh, id) => {
         const node = nodes.find((n) => n.id === id);
@@ -648,6 +725,13 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
             if (node.riskScore >= 70) {
               mat.opacity = pulseVal;
             }
+          }
+
+          const beacon = mesh.getObjectByName('threatBeacon') as THREE.Mesh;
+          if (beacon && beacon.material) {
+            const bMat = beacon.material as THREE.MeshBasicMaterial;
+            bMat.opacity = Math.sin(time * 0.006) * 0.2 + 0.32;
+            beacon.rotation.y += 0.008;
           }
 
           const rotatingCluster = mesh.getObjectByName('rotatingCluster');
@@ -675,6 +759,9 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
           const pos = flow.curve.getPointAt(flow.progress);
           flow.packetMesh.position.copy(pos);
           flow.packetMesh.visible = true;
+          if (flow.isSuspicious) {
+            flow.packetMesh.scale.setScalar(Math.sin(time * 0.01) * 0.25 + 1.1);
+          }
         });
       } else {
         flowCurvesRef.current.forEach((flow) => {
@@ -686,20 +773,48 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
       renderer.render(scene, camera);
 
       // =======================================================================
-      // PERFORMANCE OPTIMIZATION: Throttled Label Projection
-      // Only recalculate projected 2D coordinates every 3 frames or when camera moves!
-      // This prevents React state re-rendering 60 times a second!
+      // PERFORMANCE OPTIMIZATION: Throttled Label Projection with Threat Titles
       // =======================================================================
       if (showLabels && orbitState.current.frameCount % 3 === 0) {
-        const labels: { id: string; name: string; x: number; y: number; risk: number; visible: boolean }[] = [];
+        const labels: { 
+          id: string; 
+          name: string; 
+          x: number; 
+          y: number; 
+          risk: number; 
+          visible: boolean;
+          threatName?: string;
+          cve?: string;
+          severity?: string;
+        }[] = [];
+
         nodes.forEach((n) => {
           const [x, y, z] = n.position3D;
-          const vec = new THREE.Vector3(x, y + 1.1, z);
+          const vec = new THREE.Vector3(x, y + 1.25, z);
           vec.project(camera);
 
           const isVisible = vec.z < 1;
           const screenX = ((vec.x + 1) * container.clientWidth) / 2;
           const screenY = ((-vec.y + 1) * container.clientHeight) / 2;
+
+          // Derive Threat Name & CVE details
+          let threatName = '';
+          let cve = '';
+          let severity = '';
+
+          if (n.vulnerabilities && n.vulnerabilities.length > 0) {
+            const topVuln = n.vulnerabilities[0];
+            threatName = topVuln.title || topVuln.cve;
+            cve = topVuln.cve;
+            severity = topVuln.severity;
+          } else if (n.riskScore >= 80) {
+            threatName = 'Critical Exploit Exposure';
+            cve = 'CVE-2024-CRIT';
+            severity = 'critical';
+          } else if (n.riskScore >= 60) {
+            threatName = 'Elevated Risk Warning';
+            severity = 'high';
+          }
 
           labels.push({
             id: n.id,
@@ -707,7 +822,10 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
             x: screenX,
             y: screenY,
             risk: n.riskScore,
-            visible: isVisible
+            visible: isVisible,
+            threatName,
+            cve,
+            severity
           });
         });
         setProjectedLabels(labels);
@@ -822,39 +940,70 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         />
       )}
 
-      {/* 3D Screen-Space Floating Labels */}
+      {/* 3D Screen-Space Floating Labels with Threat Titles & CVE Badges */}
       {!is2DMode && showLabels && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {projectedLabels.map((lbl) => {
             if (!lbl.visible) return null;
             const isSelected = lbl.id === selectedNodeId;
+            const hasThreat = Boolean(lbl.threatName);
+
             return (
               <div
                 key={lbl.id}
                 style={{
                   transform: `translate(${lbl.x}px, ${lbl.y}px) translate(-50%, -100%)`
                 }}
-                className="absolute transition-transform duration-75 pointer-events-auto cursor-pointer"
+                className="absolute transition-transform duration-75 pointer-events-auto cursor-pointer flex flex-col items-center gap-1 group"
                 onClick={() => onSelectNode(lbl.id)}
               >
+                {/* Node Name & Risk Score Pill */}
                 <div
-                  className={`px-2 py-0.5 rounded text-[10px] font-medium tracking-tight whitespace-nowrap border shadow-lg backdrop-blur-sm transition-all ${
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-semibold tracking-tight whitespace-nowrap border shadow-xl backdrop-blur-md transition-all flex items-center gap-1.5 ${
                     isSelected
-                      ? 'bg-cyan-950/90 text-cyan-200 border-cyan-400 scale-110 ring-2 ring-cyan-500/30'
+                      ? 'bg-cyan-950/95 text-cyan-200 border-cyan-400 scale-105 ring-2 ring-cyan-500/40'
                       : lbl.risk >= 70
-                      ? 'bg-red-950/80 text-red-200 border-red-500/60'
+                      ? 'bg-red-950/90 text-red-200 border-red-500/80 shadow-red-950/50'
                       : lbl.risk >= 40
-                      ? 'bg-amber-950/80 text-amber-200 border-amber-500/60'
-                      : 'bg-slate-900/80 text-slate-300 border-slate-700/60'
+                      ? 'bg-amber-950/90 text-amber-200 border-amber-500/80 shadow-amber-950/50'
+                      : 'bg-slate-900/90 text-slate-200 border-slate-700/80'
                   }`}
                 >
-                  <span>{lbl.name.length > 18 ? `${lbl.name.substring(0, 16)}...` : lbl.name}</span>
+                  {lbl.risk >= 70 ? (
+                    <Flame className="w-3 h-3 text-red-400 animate-pulse shrink-0" />
+                  ) : lbl.risk >= 40 ? (
+                    <Zap className="w-3 h-3 text-amber-400 shrink-0" />
+                  ) : (
+                    <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                  )}
+                  <span>{lbl.name.length > 20 ? `${lbl.name.substring(0, 18)}...` : lbl.name}</span>
                   {showRiskOverlay && (
-                    <span className="ml-1.5 font-mono font-bold">
+                    <span className={`px-1 py-0.2 rounded font-mono font-bold text-[9px] ${
+                      lbl.risk >= 70 ? 'bg-red-900/90 text-red-100' :
+                      lbl.risk >= 40 ? 'bg-amber-900/90 text-amber-100' : 'bg-emerald-900/90 text-emerald-100'
+                    }`}>
                       {lbl.risk}
                     </span>
                   )}
                 </div>
+
+                {/* Showcase Threat Name Overlay Badge */}
+                {showRiskOverlay && hasThreat && (
+                  <div
+                    className={`px-2 py-0.5 rounded text-[9px] font-mono font-semibold tracking-tight whitespace-nowrap border shadow-lg backdrop-blur-md flex items-center gap-1 max-w-[240px] truncate ${
+                      lbl.risk >= 70
+                        ? 'bg-red-950/95 text-red-300 border-red-500/80 animate-pulse'
+                        : lbl.risk >= 40
+                        ? 'bg-amber-950/95 text-amber-300 border-amber-500/80'
+                        : 'bg-slate-900/90 text-cyan-300 border-cyan-800/60'
+                    }`}
+                  >
+                    <AlertTriangle className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                    <span className="truncate">
+                      THREAT: {lbl.threatName} {lbl.cve ? `(${lbl.cve})` : ''}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -867,6 +1016,27 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
           <span className="font-bold tracking-tight">360° AUTO-ROTATION ACTIVE</span>
           <span className="text-slate-400 font-bold ml-1">[{Math.round(currentAzimuth)}°]</span>
+        </div>
+      )}
+
+      {/* Active Selected Node 3D Threat Spotlight Banner */}
+      {!is2DMode && selectedNode && selectedNode.vulnerabilities && selectedNode.vulnerabilities.length > 0 && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-xl bg-slate-950/95 border border-red-500/60 backdrop-blur-md shadow-2xl flex items-center gap-3 animate-fadeIn">
+          <div className="w-8 h-8 rounded-lg bg-red-950/80 border border-red-500/40 flex items-center justify-center text-red-400 shrink-0">
+            <ShieldAlert className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <div className="text-[10px] text-red-400 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <span>ACTIVE 3D THREAT SPOTLIGHT</span>
+              <span className="px-1.5 py-0.2 rounded bg-red-950 text-red-300 font-mono text-[9px]">
+                {selectedNode.vulnerabilities[0].cve}
+              </span>
+            </div>
+            <div className="text-xs font-bold text-white flex items-center gap-2">
+              <span>{selectedNode.vulnerabilities[0].title}</span>
+              <span className="text-[10px] text-slate-400 font-mono">[{selectedNode.name}]</span>
+            </div>
+          </div>
         </div>
       )}
 
