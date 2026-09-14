@@ -17,6 +17,7 @@ import {
   INITIAL_THREAT_INTEL,
   INITIAL_ENTERPRISE_RISK
 } from '../data/cyberData';
+import { supabaseDatabaseService } from './supabaseService';
 
 export interface AppState {
   nodes: InfrastructureNode[];
@@ -73,6 +74,9 @@ class CyberRiskApiService {
       this.investigations = [...INITIAL_INVESTIGATIONS];
       this.threatIntel = [...INITIAL_THREAT_INTEL];
       this.recalculateSummary();
+
+      // Async pull from Supabase if connected
+      this.syncFromSupabase();
     } catch {
       this.nodes = [...INITIAL_NODES];
       this.recommendations = [...INITIAL_RECOMMENDATIONS];
@@ -137,6 +141,21 @@ class CyberRiskApiService {
   private notify() {
     const state = this.getState();
     this.listeners.forEach((fn) => fn(state));
+  }
+
+  public async syncFromSupabase(): Promise<boolean> {
+    const remoteNodes = await supabaseDatabaseService.fetchNodes();
+    if (remoteNodes && remoteNodes.length > 0) {
+      this.nodes = remoteNodes;
+      this.recalculateSummary();
+      this.notify();
+      return true;
+    }
+    return false;
+  }
+
+  public async syncToCloud(): Promise<{ success: boolean; message: string }> {
+    return await supabaseDatabaseService.syncAllToCloud(this.nodes, this.recommendations, this.anomalies);
   }
 
   private persist() {

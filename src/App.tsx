@@ -25,8 +25,10 @@ import { RecommendationsPage } from './pages/RecommendationsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AegisAiAgentWidget } from './components/agent/AegisAiAgentWidget';
+import { AuthProvider } from './context/AuthContext';
+import { AuthModal } from './components/auth/AuthModal';
 
-export default function App() {
+export function AppContent() {
   // Navigation Route State
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
     return window.location.hash.replace('#', '') || '/';
@@ -46,6 +48,7 @@ export default function App() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [liveStreaming, setLiveStreaming] = useState<boolean>(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   // Subscribe to real-time updates from API Service
   useEffect(() => {
@@ -136,6 +139,7 @@ export default function App() {
         liveStreaming={liveStreaming}
         onToggleStreaming={handleToggleStreaming}
         onResetData={handleResetData}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
       />
 
       {/* Main Workspace: Sidebar + Dynamic Route Views */}
@@ -263,6 +267,7 @@ export default function App() {
               preferences={preferences}
               onUpdatePreferences={handleUpdatePreferences}
               onResetData={handleResetData}
+              onOpenAuth={() => setIsAuthModalOpen(true)}
             />
           )}
         </main>
@@ -281,6 +286,20 @@ export default function App() {
         onApplyRecommendation={handleApplyRecommendation}
         onNavigate={handleNavigate}
       />
+
+      {/* Supabase Authentication & Connection Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

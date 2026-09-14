@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   Shield, 
   Activity, 
@@ -6,9 +5,13 @@ import {
   Search, 
   Radio, 
   RotateCcw,
-  CheckCircle2
+  CheckCircle2,
+  Database,
+  UserCheck,
+  Lock
 } from 'lucide-react';
 import { EnterpriseRiskSummary } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 
 interface TopNavigationProps {
   currentRoute: string;
@@ -17,6 +20,7 @@ interface TopNavigationProps {
   liveStreaming: boolean;
   onToggleStreaming: () => void;
   onResetData: () => void;
+  onOpenAuth?: () => void;
 }
 
 export const TopNavigation: React.FC<TopNavigationProps> = ({
@@ -25,8 +29,11 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   riskSummary,
   liveStreaming,
   onToggleStreaming,
-  onResetData
+  onResetData,
+  onOpenAuth
 }) => {
+  const { user, isConfigured } = useAuth();
+
   return (
     <header className="h-14 bg-[#080b11] border-b border-slate-800/80 px-4 flex items-center justify-between gap-4 z-40 select-none">
       {/* Brand & Identity */}
@@ -96,6 +103,21 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
           <span className="hidden sm:inline">{liveStreaming ? 'Telemetry Live' : 'Paused'}</span>
         </button>
 
+        {/* Supabase Cloud Connection Status */}
+        <button
+          id="btn-supabase-status"
+          onClick={onOpenAuth}
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+            isConfigured
+              ? 'bg-cyan-950/50 text-cyan-300 border-cyan-700/50 hover:bg-cyan-900/60'
+              : 'bg-slate-900 text-amber-400 border-amber-800/40 hover:bg-slate-800'
+          }`}
+          title="Manage Supabase Database & Auth Connection"
+        >
+          <Database className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden md:inline">{isConfigured ? 'Supabase Cloud' : 'Connect Supabase'}</span>
+        </button>
+
         {/* Reset State Button */}
         <button
           id="btn-reset-demo"
@@ -120,16 +142,34 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
           )}
         </button>
 
-        {/* User Avatar */}
-        <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+        {/* User Avatar & Supabase Auth Trigger */}
+        <button
+          id="btn-user-auth"
+          onClick={onOpenAuth}
+          className="flex items-center gap-2 pl-2 border-l border-slate-800 hover:opacity-80 transition-opacity text-left focus:outline-none"
+        >
           <div className="w-7 h-7 rounded-full bg-slate-800 border border-cyan-500/30 flex items-center justify-center text-xs font-bold text-cyan-300">
-            SEC
+            {user ? (user.email?.charAt(0).toUpperCase() || 'U') : 'SEC'}
           </div>
           <div className="hidden lg:block text-left">
-            <div className="text-xs font-medium text-slate-200 leading-tight">SecOps Lead</div>
-            <div className="text-[10px] text-slate-500 font-mono">SOC Admin</div>
+            <div className="text-xs font-medium text-slate-200 leading-tight">
+              {user ? (user.user_metadata?.full_name || 'SecOps User') : 'SecOps Lead'}
+            </div>
+            <div className="text-[10px] text-cyan-400 font-mono flex items-center gap-1">
+              {user ? (
+                <>
+                  <UserCheck className="w-2.5 h-2.5" />
+                  <span>Authenticated</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-2.5 h-2.5 text-slate-500" />
+                  <span className="text-slate-500">Local SOC Admin</span>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        </button>
       </div>
     </header>
   );
