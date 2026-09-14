@@ -2,8 +2,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Retrieve credentials from environment variables or custom runtime storage
 export function getSupabaseCredentials(): { url: string; key: string } {
-  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || '';
-  const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || '';
+  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://jdmgedjuphdtsqknlsrr.supabase.co';
+  const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_OQvnOv3ELTZVNO2JwLydaw_y-wtg1N9';
 
   const storedUrl = localStorage.getItem('aegis_supabase_url') || '';
   const storedKey = localStorage.getItem('aegis_supabase_key') || '';
