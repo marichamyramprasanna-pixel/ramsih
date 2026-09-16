@@ -17,7 +17,8 @@ import {
   Navigation,
   Check
 } from 'lucide-react';
-import { ViewerQuality } from '../../types';
+export type VisualizationMode = 'infrastructure' | 'heatmap' | 'attack-path' | 'traffic' | 'criticality' | 'propagation';
+export type ViewerQuality = 'auto' | 'high' | 'medium' | 'low';
 
 interface ViewerControlsProps {
   autoRotate: boolean;
@@ -37,6 +38,8 @@ interface ViewerControlsProps {
   onChangeQuality: (q: ViewerQuality) => void;
   is2DMode: boolean;
   onToggle2DMode: () => void;
+  visualizationMode?: VisualizationMode;
+  onChangeVisualizationMode?: (mode: VisualizationMode) => void;
   showDevMetrics?: boolean;
   onToggleDevMetrics?: () => void;
   fps?: number;
@@ -67,6 +70,8 @@ export const ViewerControls: React.FC<ViewerControlsProps> = ({
   onChangeQuality,
   is2DMode,
   onToggle2DMode,
+  visualizationMode,
+  onChangeVisualizationMode,
   showDevMetrics,
   onToggleDevMetrics,
   fps = 60,
@@ -236,8 +241,25 @@ export const ViewerControls: React.FC<ViewerControlsProps> = ({
         </button>
       </div>
 
-      {/* Middle/Right controls: Overlays, Quality, Performance & Fullscreen */}
+      {/* Middle/Right controls: Overlays, Mode Selector, Quality & Fullscreen */}
       <div className="flex items-center gap-1.5 p-1 bg-slate-900/90 border border-slate-800 rounded-lg shadow-2xl backdrop-blur-md pointer-events-auto">
+        {/* Visualization Mode Selector */}
+        {onChangeVisualizationMode && (
+          <select
+            value={visualizationMode || 'infrastructure'}
+            onChange={(e) => onChangeVisualizationMode(e.target.value as VisualizationMode)}
+            className="bg-slate-950 text-cyan-300 border border-cyan-500/40 rounded-md px-2 py-1 text-[11px] font-mono font-bold focus:outline-none cursor-pointer"
+            title="Select 3D Spatial Visualization Mode"
+          >
+            <option value="infrastructure">Mode: 3D Infrastructure View</option>
+            <option value="heatmap">Mode: Risk Heatmap</option>
+            <option value="attack-path">Mode: Attack Path Vectors</option>
+            <option value="traffic">Mode: High-Speed Traffic Streams</option>
+            <option value="criticality">Mode: Asset Criticality Scaling</option>
+            <option value="propagation">Mode: Threat Infection Propagation</option>
+          </select>
+        )}
+
         <button
           id="btn-toggle-labels"
           onClick={onToggleLabels}

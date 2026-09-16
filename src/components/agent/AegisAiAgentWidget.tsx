@@ -20,9 +20,12 @@ import {
   Cpu,
   RefreshCw,
   Box,
-  FileText
+  FileText,
+  Key,
+  Check
 } from 'lucide-react';
 import { InfrastructureNode, EnterpriseRiskSummary, RemediationRecommendation } from '../../types';
+import { askOpenRouterAgent, getOpenRouterApiKey, saveOpenRouterApiKey, ChatMessage } from '../../services/openrouterService';
 
 interface AegisAiAgentWidgetProps {
   nodes: InfrastructureNode[];
@@ -136,7 +139,7 @@ export const AegisAiAgentWidget: React.FC<AegisAiAgentWidgetProps> = ({
       ]);
 
       setIsThinking(false);
-    }, 1200);
+    }, 150);
   };
 
   // Execute Agent Auto-Remediation
@@ -180,7 +183,7 @@ export const AegisAiAgentWidget: React.FC<AegisAiAgentWidgetProps> = ({
       ]);
 
       setIsThinking(false);
-    }, 1400);
+    }, 150);
   };
 
   // Execute Agent Provision Device
@@ -240,11 +243,11 @@ export const AegisAiAgentWidget: React.FC<AegisAiAgentWidgetProps> = ({
       ]);
 
       setIsThinking(false);
-    }, 1200);
+    }, 150);
   };
 
   // Handle Natural Language User Input
-  const handleSendUserMessage = (textToSend?: string) => {
+  const handleSendUserMessage = async (textToSend?: string) => {
     const text = textToSend || inputQuery;
     if (!text.trim()) return;
 
@@ -261,47 +264,204 @@ export const AegisAiAgentWidget: React.FC<AegisAiAgentWidgetProps> = ({
 
     const lower = text.toLowerCase();
 
-    setTimeout(() => {
-      if (lower.includes('assess') || lower.includes('report') || lower.includes('scan') || lower.includes('status')) {
-        handleSiteAssessment();
-      } else if (lower.includes('remediate') || lower.includes('patch') || lower.includes('solve') || lower.includes('fix')) {
-        handleAutoRemediateAll();
-      } else if (lower.includes('add') || lower.includes('provision') || lower.includes('create') || lower.includes('device')) {
-        handleProvisionDevice();
-      } else if (lower.includes('attack') || lower.includes('path') || lower.includes('kill')) {
+    // Check for explicit local action commands
+    if (lower.includes('assess site') || lower.includes('full report') || lower.includes('scan site')) {
+      handleSiteAssessment();
+      return;
+    } else if (lower.includes('remediate all') || lower.includes('patch all') || lower.includes('fix all') || lower.includes('solve all')) {
+      handleAutoRemediateAll();
+      return;
+    } else if (lower.includes('provision gateway') || lower.includes('add web gateway') || lower.includes('add device') || lower.includes('provision device')) {
+      handleProvisionDevice();
+      return;
+    }
+
+    // Smart Intent: Quarantine / Isolate Specific Node
+    if (lower.includes('quarantine') || lower.includes('isolate')) {
+      const matchNode = nodes.find(n => 
+        lower.includes(n.id.toLowerCase()) || 
+        lower.includes(n.name.toLowerCase()) || 
+        lower.includes(n.hostname.toLowerCase()) ||
+        lower.includes(n.ipAddress)
+      ) || nodes.find(n => n.riskScore >= 70);
+
+      if (matchNode) {
+        onQuarantineNode(matchNode.id);
+        const actionLabel = matchNode.status === 'quarantined' ? 'Unquarantine Node' : 'Quarantine Node';
         setMessages((prev) => [
           ...prev,
           {
             id: `msg-${Date.now()}`,
             sender: 'agent',
-            text: `🎯 Navigating to **Attack Path Analysis & Kill-Chain Isolation** engine...
+            text: `🛡️ **Autonomous Action Executed**: Toggled quarantine state for asset **${matchNode.name}** (\`${matchNode.id}\`).
             
-I have analyzed lateral movement vectors for threat actor **UNC-3882 (Volt Shadow)**. You can sever active attack paths directly from the Attack Path workspace.`,
+- **Device Status**: \`${matchNode.status.toUpperCase()}\`
+- **Network Isolation**: Blast radius contained. Connectivity to core database severs.`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            thinkingSteps: ['Parsing spatial topology node ID...', 'Issuing zero-trust network quarantine command...'],
             actionTaken: {
-              type: 'navigate',
-              label: 'Open Attack Path Engine',
-              targetRoute: '/attack-path'
+              type: 'quarantine',
+              label: 'View Isolated Node in 3D Topology',
+              targetRoute: '/infrastructure'
             }
           }
         ]);
         setIsThinking(false);
-      } else {
-        // General AI Response
+        return;
+      }
+    }
+
+    // Smart Intent: Solve / Patch Specific Device
+    if ((lower.includes('patch') || lower.includes('fix') || lower.includes('solve') || lower.includes('remediate')) && !lower.includes('all')) {
+      const matchNode = nodes.find(n => 
+        lower.includes(n.id.toLowerCase()) || 
+        lower.includes(n.name.toLowerCase()) || 
+        lower.includes(n.hostname.toLowerCase())
+      ) || nodes.find(n => n.vulnerabilities.length > 0);
+
+      if (matchNode) {
+        onSolveDeviceProblem(matchNode.id);
         setMessages((prev) => [
           ...prev,
           {
             id: `msg-${Date.now()}`,
             sender: 'agent',
-            text: `🤖 I have processed your instruction: **"${text}"**.
+            text: `🔧 **Autonomous Remediation Executed**: Remediated all vulnerabilities on **${matchNode.name}** (\`${matchNode.id}\`).
             
-I am fully equipped to assess risks, patch vulnerabilities, provision devices, and sever attack paths across this platform. Choose one of the quick actions below:`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+- **Risk Score**: Reduced to **15** (HEALTHY).
+- **Vulnerabilities Patched**: All associated CVEs resolved.`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            thinkingSteps: ['Locating target node in inventory...', 'Applying virtual patch and resetting risk score...'],
+            actionTaken: {
+              type: 'remediation',
+              label: 'View Remediated Asset',
+              targetRoute: '/assets'
+            }
           }
         ]);
         setIsThinking(false);
+        return;
       }
-    }, 1000);
+    }
+
+    // Smart Intent: Page Navigation
+    const routeMap: Record<string, { route: string; name: string }> = {
+      'attack': { route: '/attack-path', name: 'Attack Path Analysis & Kill-Chain Engine' },
+      'path': { route: '/attack-path', name: 'Attack Path Analysis & Kill-Chain Engine' },
+      'asset': { route: '/assets', name: 'Assets & Infrastructure Inventory' },
+      'inventory': { route: '/assets', name: 'Assets & Infrastructure Inventory' },
+      'detection': { route: '/detections', name: 'Threat Detections & Anomalies' },
+      'anomaly': { route: '/detections', name: 'Threat Detections & Anomalies' },
+      'alert': { route: '/detections', name: 'Threat Detections & Anomalies' },
+      'recommendation': { route: '/recommendations', name: 'Remediation Recommendations' },
+      'remediation': { route: '/recommendations', name: 'Remediation Recommendations' },
+      'infrastructure': { route: '/infrastructure', name: '3D Spatial Topology Viewer' },
+      '3d': { route: '/infrastructure', name: '3D Spatial Topology Viewer' },
+      'topology': { route: '/infrastructure', name: '3D Spatial Topology Viewer' },
+      'risk': { route: '/risk-quantification', name: 'FAIR Risk Quantification Engine' },
+      'fair': { route: '/risk-quantification', name: 'FAIR Risk Quantification Engine' },
+      'quantification': { route: '/risk-quantification', name: 'FAIR Risk Quantification Engine' },
+      'intel': { route: '/threat-intel', name: 'Global Threat Intelligence Feed' },
+      'threat': { route: '/threat-intel', name: 'Global Threat Intelligence Feed' },
+      'report': { route: '/reports', name: 'Executive Security & Risk Reports' },
+      'setting': { route: '/settings', name: 'System Settings & Security Hardening' },
+      'config': { route: '/settings', name: 'System Settings & Security Hardening' }
+    };
+
+    for (const [key, info] of Object.entries(routeMap)) {
+      if (lower.includes(key) && (lower.includes('go') || lower.includes('open') || lower.includes('show') || lower.includes('navigate'))) {
+        onNavigate(info.route);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `msg-${Date.now()}`,
+            sender: 'agent',
+            text: `🚀 **Navigated to ${info.name}**.`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            thinkingSteps: [`Routing client session to ${info.route}...`],
+            actionTaken: {
+              type: 'navigate',
+              label: `Open ${info.name}`,
+              targetRoute: info.route
+            }
+          }
+        ]);
+        setIsThinking(false);
+        return;
+      }
+    }
+
+    // Dynamic Live Context for OpenRouter AI Call
+    const totalExposureM = (nodes.reduce((acc, n) => acc + n.financialExposure, 0) / 1000000).toFixed(2);
+    const systemContext = `You are Aegis AI Agent, an elite autonomous cyber risk intelligence copilot operating inside the Aegis 3D continuous cyber risk platform.
+Your purpose is to assist security analysts, CISOs, and SecOps engineers with 3D spatial risk topology, FAIR risk quantification, CVE threat mitigation, and infrastructure posture defense.
+
+Current Live Platform Telemetry State:
+- Monitored Infrastructure Nodes: ${nodes.length}
+- Overall Risk Posture Score: ${riskSummary.overallRiskScore}/100 (${riskSummary.overallRiskScore >= 70 ? 'CRITICAL RISK' : 'HEALTHY POSTURE'})
+- Total Expected Loss Exposure: $${totalExposureM}M USD
+- Active Remediation Recommendations: ${recommendations.length}
+
+Infrastructure Nodes Summary:
+${nodes.map(n => `- ${n.name} (Type: ${n.category}, IP: ${n.ipAddress}, Tier: ${n.tier}, Risk Score: ${n.riskScore}/100, Status: ${n.status}, CVEs: ${n.vulnerabilities.map(v => v.cve).join(', ') || 'None'})`).join('\n')}
+
+Guidelines:
+- Provide clear, concise, authoritative, and actionable cybersecurity advice.
+- Use markdown formatting, bullet points, and code tags for CVEs, IP addresses, and commands.
+- Be proactive in explaining attack paths, FAIR loss modeling, and remediation steps.`;
+
+    const chatHistory: ChatMessage[] = messages
+      .filter(m => m.sender !== 'system')
+      .map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }));
+
+    const result = await askOpenRouterAgent(text.trim(), systemContext, chatHistory);
+
+    if (result.error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}`,
+          sender: 'agent',
+          text: `⚠️ **AI Agent Response (Offline Mode)**
+          
+I processed your query: **"${text}"**.
+
+*(Note: ${result.error})*
+
+### 🤖 Aegis Autonomous Security Telemetry Summary:
+- **Monitored Assets**: ${nodes.length} Nodes
+- **Risk Posture**: ${riskSummary.overallRiskScore}/100
+- **Total Loss Exposure**: $${totalExposureM}M USD
+
+You can use the quick buttons above to assess risks, patch devices, or sever attack paths!`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          thinkingSteps: [
+            'Attempting connection to OpenRouter API Endpoint...',
+            'Falling back to local spatial telemetry engine...'
+          ]
+        }
+      ]);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}`,
+          sender: 'agent',
+          text: result.text,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          thinkingSteps: [
+            'Synthesizing prompt with 3D Spatial Telemetry Context...',
+            'Querying OpenRouter LLM Neural Inference Engine...',
+            'Formatting cybersecurity mitigation breakdown...'
+          ]
+        }
+      ]);
+    }
+
+    setIsThinking(false);
   };
 
   return (
@@ -321,11 +481,11 @@ I am fully equipped to assess risks, patch vulnerabilities, provision devices, a
           </div>
           <div className="text-left font-sans">
             <div className="text-xs font-black tracking-tight leading-none text-slate-950 uppercase flex items-center gap-1">
-              <span>AEGIS AI AGENT</span>
+              <span>THREAT CATCHER AI AGENT</span>
               <Sparkles className="w-3 h-3 text-amber-300 fill-amber-300 animate-pulse" />
             </div>
             <div className="text-[10px] text-slate-900 font-mono font-bold leading-tight mt-0.5">
-              Site Assessment & Action
+              T Catcher • Instant Action
             </div>
           </div>
         </button>
@@ -343,14 +503,14 @@ I am fully equipped to assess risks, patch vulnerabilities, provision devices, a
           {/* Header Bar */}
           <div className="p-3.5 bg-gradient-to-r from-slate-950 via-[#0a0f1d] to-slate-950 border-b border-slate-800 rounded-t-2xl flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow">
-                <Bot className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center font-mono font-black text-xs text-cyan-300 shadow">
+                <span className="text-cyan-400 text-sm font-black">T</span><span className="text-blue-400 text-sm font-black">C</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-white tracking-tight">Aegis Cyber AI Agent</h3>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Threat Catcher AI Agent</h3>
                   <span className="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 font-mono text-[9px] font-bold border border-emerald-800">
-                    ONLINE
+                    T Catcher
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-400 font-mono">

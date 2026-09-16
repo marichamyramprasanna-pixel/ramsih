@@ -131,14 +131,23 @@ export interface FAIRMetrics {
 }
 
 export interface EnterpriseRiskSummary {
-  overallRiskScore: number; // 0 - 100
+  enterpriseRiskScore: number; // 0 - 100 (primary)
+  overallRiskScore: number; // 0 - 100 (alias for compatibility)
+  riskLevel: 'Healthy' | 'Low' | 'Medium' | 'High' | 'Critical' | RiskLevel;
+  monitoredDevices: number;
+  activeAssetsCount: number; // alias
+  compromisedDevices: number;
+  highRiskAssetsCount: number; // alias
+  criticalIncidents: number;
+  criticalAnomaliesCount: number; // alias
+  estimatedFinancialExposure: number;
+  currency: string;
   riskTrend: number; // e.g. -4.2%
-  activeAssetsCount: number;
-  highRiskAssetsCount: number;
-  criticalAnomaliesCount: number;
   fairMetrics: FAIRMetrics;
   industryBenchmarkScore: number;
   compliancePosturePercentage: number;
+  topThreatCategory?: string;
+  lastUpdated?: string;
 }
 
 export type ViewerQuality = 'auto' | 'high' | 'medium' | 'low';

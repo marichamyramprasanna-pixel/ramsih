@@ -15,11 +15,14 @@ import {
   Terminal,
   ExternalLink,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getSupabaseCredentials, saveSupabaseCredentials, testSupabaseConnection } from '../../lib/supabase';
 import { apiService } from '../../services/apiService';
+import { checkPasswordStrength } from '../../utils/security';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -32,6 +35,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     session, 
     isConfigured, 
     connectionStatus, 
+    failedAttempts,
+    isLockedOut,
     signIn, 
     signUp, 
     signOut, 
@@ -53,6 +58,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const credentials = getSupabaseCredentials();
   const [supabaseUrl, setSupabaseUrl] = useState(credentials.url);
   const [supabaseKey, setSupabaseKey] = useState(credentials.key);
+  const [showSupabaseSecrets, setShowSupabaseSecrets] = useState(false);
   const [configMessage, setConfigMessage] = useState<{ success: boolean; text: string } | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -312,7 +318,56 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                         placeholder="••••••••••••"
                         className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                       />
+                      {authMode === 'signup' && password.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {(() => {
+                            const strength = checkPasswordStrength(password);
+                            const colors = ['bg-red-500', 'bg-amber-500', 'bg-yellow-500', 'bg-emerald-500', 'bg-cyan-400'];
+                            return (
+                              <>
+                                <div className="flex items-center justify-between text-[10px]">
+                                  <span className="text-slate-400">Strength:</span>
+                                  <span className="font-mono font-semibold text-slate-200">{strength.label}</span>
+                                </div>
+                                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden flex gap-1">
+                                  {[0, 1, 2, 3].map((idx) => (
+                                    <div
+                                      key={idx}
+                                      className={`h-full flex-1 rounded-full transition-all ${
+                                        idx < strength.score ? colors[strength.score] : 'bg-slate-800'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                                {strength.feedback.length > 0 && (
+                                  <ul className="text-[10px] text-amber-400 space-y-0.5 mt-1 list-disc list-inside">
+                                    {strength.feedback.map((item, i) => (
+                                      <li key={i}>{item}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
+
+                    {isLockedOut && (
+                      <div className="p-3 rounded-lg bg-red-950/80 border border-red-700 text-xs text-red-200 flex items-start gap-2">
+                        <Lock className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                        <div>
+                          <strong>Brute-Force Lockout Triggered:</strong> Too many consecutive failed sign-in attempts detected. Access is temporarily locked.
+                        </div>
+                      </div>
+                    )}
+
+                    {!isLockedOut && failedAttempts > 0 && failedAttempts < 5 && authMode === 'signin' && (
+                      <div className="text-[11px] text-amber-400 font-mono flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Failed attempt {failedAttempts}/5 before temporary lockout</span>
+                      </div>
+                    )}
 
                     {authError && (
                       <div className="p-2.5 rounded-lg bg-red-950/60 border border-red-800/80 text-xs text-red-300">
@@ -350,18 +405,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center justify-between">
                     <span>Supabase Project URL (VITE_SUPABASE_URL)</span>
-                    <a
-                      href="https://supabase.com/dashboard"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
-                    >
-                      <span>Supabase Dashboard</span>
-                      <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowSupabaseSecrets(!showSupabaseSecrets)}
+                        className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                      >
+                        {showSupabaseSecrets ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        <span>{showSupabaseSecrets ? 'Hide Secrets' : 'Show Secrets'}</span>
+                      </button>
+                      <a
+                        href="https://supabase.com/dashboard"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
+                      >
+                        <span>Dashboard</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
                   </label>
                   <input
-                    type="url"
+                    type={showSupabaseSecrets ? "text" : "password"}
                     required
                     value={supabaseUrl}
                     onChange={(e) => setSupabaseUrl(e.target.value)}
@@ -371,11 +436,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Supabase Anon API Key (VITE_SUPABASE_ANON_KEY)
+                  <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center justify-between">
+                    <span>Supabase Anon API Key (VITE_SUPABASE_ANON_KEY)</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSupabaseSecrets(!showSupabaseSecrets)}
+                      className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                    >
+                      {showSupabaseSecrets ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      <span>{showSupabaseSecrets ? 'Hide Secrets' : 'Show Secrets'}</span>
+                    </button>
                   </label>
                   <input
-                    type="password"
+                    type={showSupabaseSecrets ? "text" : "password"}
                     required
                     value={supabaseKey}
                     onChange={(e) => setSupabaseKey(e.target.value)}

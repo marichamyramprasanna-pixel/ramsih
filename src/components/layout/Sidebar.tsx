@@ -14,7 +14,8 @@ import {
   ChevronRight,
   ShieldCheck,
   ChevronLeft,
-  GitCommit
+  GitCommit,
+  Lock
 } from 'lucide-react';
 import { EnterpriseRiskSummary } from '../../types';
 
@@ -39,6 +40,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Overview',
       icon: <Compass className="w-4 h-4" />,
       badge: null
+    },
+    {
+      route: '/login',
+      label: 'Sign In / Account',
+      icon: <Lock className="w-4 h-4 text-cyan-400" />,
+      badge: 'Auth',
+      badgeColor: 'bg-cyan-950 text-cyan-300 border border-cyan-800/60 font-mono font-bold'
     },
     {
       route: '/dashboard',

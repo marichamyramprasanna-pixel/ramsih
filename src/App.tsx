@@ -24,15 +24,22 @@ import { ThreatIntelligencePage } from './pages/ThreatIntelligencePage';
 import { RecommendationsPage } from './pages/RecommendationsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { AegisAiAgentWidget } from './components/agent/AegisAiAgentWidget';
-import { AuthProvider } from './context/AuthContext';
+import { LoginPage } from './pages/LoginPage';
+import { ThreatCatcherChatBotWidget } from './components/chatbot/ThreatCatcherChatBotWidget';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/auth/AuthModal';
+import { DeviceByDeviceScannerModal } from './components/scanner/DeviceByDeviceScannerModal';
+import { ScrollProgressBar, ScrollToTopButton, useScrollReveal } from './components/common/ScrollEffects';
 
 export function AppContent() {
+  const { user, loading } = useAuth();
+
   // Navigation Route State
   const [currentRoute, setCurrentRoute] = useState<string>(() => {
     return window.location.hash.replace('#', '') || '/';
   });
+
+  useScrollReveal(currentRoute);
 
   // Application Data States
   const [nodes, setNodes] = useState<InfrastructureNode[]>(apiService.getNodes());
@@ -49,6 +56,7 @@ export function AppContent() {
   const [liveStreaming, setLiveStreaming] = useState<boolean>(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isDeviceScannerOpen, setIsDeviceScannerOpen] = useState<boolean>(false);
 
   // Subscribe to real-time updates from API Service
   useEffect(() => {
@@ -85,6 +93,29 @@ export function AppContent() {
     setCurrentRoute(route);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Auth Gate Loading Screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#04060b] flex items-center justify-center p-4">
+        <div className="text-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-300 mx-auto animate-pulse font-mono font-black text-lg">
+            <span className="text-cyan-400">T</span><span className="text-blue-400">C</span>
+          </div>
+          <div className="text-xs font-mono text-cyan-400">Authenticating Threat Catcher Security Gate...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mandatory Sign-In Gate: If not authenticated, force Sign-In page view before opening project
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#04060b] text-slate-100 font-sans">
+        <LoginPage onNavigate={handleNavigate} />
+      </div>
+    );
+  }
 
   const handleToggleStreaming = () => {
     if (liveStreaming) {
@@ -131,15 +162,23 @@ export function AppContent() {
 
   return (
     <div className="min-h-screen bg-[#05070c] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+      {/* Scroll Progress Bar at Top of Viewport */}
+      <ScrollProgressBar targetContainerId="main-content-scroll" />
+
       {/* Top Header Navigation */}
       <TopNavigation
         currentRoute={currentRoute}
         onNavigate={handleNavigate}
         riskSummary={riskSummary}
+        nodes={nodes}
+        anomalies={anomalies}
+        investigations={investigations}
+        onSelectNode={handleSelectNode}
         liveStreaming={liveStreaming}
         onToggleStreaming={handleToggleStreaming}
         onResetData={handleResetData}
         onOpenAuth={() => setIsAuthModalOpen(true)}
+        onOpenDeviceScanner={() => setIsDeviceScannerOpen(true)}
       />
 
       {/* Main Workspace: Sidebar + Dynamic Route Views */}
@@ -154,7 +193,7 @@ export function AppContent() {
         />
 
         {/* Dynamic Route Content */}
-        <main className="flex-1 overflow-y-auto bg-gradient-to-b from-[#080b12] to-[#04060a] relative">
+        <main id="main-content-scroll" className="flex-1 overflow-y-auto bg-gradient-to-b from-[#080b12] to-[#04060a] relative scroll-smooth">
           {currentRoute === '/' && (
             <OverviewPage
               nodes={nodes}
@@ -262,6 +301,10 @@ export function AppContent() {
             />
           )}
 
+          {currentRoute === '/login' && (
+            <LoginPage onNavigate={handleNavigate} />
+          )}
+
           {currentRoute === '/settings' && (
             <SettingsPage
               preferences={preferences}
@@ -273,8 +316,8 @@ export function AppContent() {
         </main>
       </div>
 
-      {/* Floating Aegis AI Cyber Agent Widget */}
-      <AegisAiAgentWidget
+      {/* Floating Threat Catcher AI ChatBot Widget */}
+      <ThreatCatcherChatBotWidget
         nodes={nodes}
         riskSummary={riskSummary}
         recommendations={recommendations}
@@ -292,6 +335,20 @@ export function AppContent() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
       />
+
+      {/* Device-by-Device Scanner Diagnostic Modal */}
+      <DeviceByDeviceScannerModal
+        isOpen={isDeviceScannerOpen}
+        onClose={() => setIsDeviceScannerOpen(false)}
+        nodes={nodes}
+        onSelectNode={handleSelectNode}
+        onQuarantineNode={handleQuarantineNode}
+        onDeleteDevice={handleDeleteDevice}
+        onSolveDeviceProblem={handleSolveDeviceProblem}
+      />
+
+      {/* Floating Back to Top Button */}
+      <ScrollToTopButton targetContainerId="main-content-scroll" />
     </div>
   );
 }

@@ -915,11 +915,18 @@ export const INITIAL_THREAT_INTEL: ThreatIntelligenceReport[] = [
 ];
 
 export const INITIAL_ENTERPRISE_RISK: EnterpriseRiskSummary = {
-  overallRiskScore: 74,
-  riskTrend: -3.8, // -3.8% risk reduction after recent mitigations
-  activeAssetsCount: 16,
-  highRiskAssetsCount: 5,
+  enterpriseRiskScore: 72,
+  overallRiskScore: 72,
+  riskLevel: 'High',
+  monitoredDevices: 6,
+  activeAssetsCount: 6,
+  compromisedDevices: 1,
+  highRiskAssetsCount: 1,
+  criticalIncidents: 2,
   criticalAnomaliesCount: 2,
+  estimatedFinancialExposure: 350000,
+  currency: 'INR',
+  riskTrend: -3.8, // -3.8% risk reduction after recent mitigations
   fairMetrics: {
     totalExpectedLossUSD: 8640000,
     annualizedLossExposureUSD: 3180000,
@@ -931,5 +938,7 @@ export const INITIAL_ENTERPRISE_RISK: EnterpriseRiskSummary = {
     lossMagnitudeProbableUSD: 4250000
   },
   industryBenchmarkScore: 58, // Peers average 58 (higher is worse risk)
-  compliancePosturePercentage: 86.4
+  compliancePosturePercentage: 86.4,
+  topThreatCategory: 'Behavioral Anomalies & Container Escape Vulnerabilities',
+  lastUpdated: new Date().toISOString()
 };

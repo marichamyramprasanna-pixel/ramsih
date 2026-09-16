@@ -19,13 +19,16 @@ import {
   Zap,
   GitCommit,
   Wrench,
-  Layers
+  Layers,
+  Trash2
 } from 'lucide-react';
 
 interface AssetDetailPanelProps {
   node: InfrastructureNode | null;
   onClose: () => void;
   onQuarantine: (nodeId: string) => void;
+  onDeleteDevice?: (nodeId: string) => boolean;
+  onSolveDeviceProblem?: (nodeId: string) => boolean;
   onNavigateToDetections?: () => void;
   onNavigateToRecommendations?: () => void;
 }
@@ -34,6 +37,8 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   node,
   onClose,
   onQuarantine,
+  onDeleteDevice,
+  onSolveDeviceProblem,
   onNavigateToDetections,
   onNavigateToRecommendations
 }) => {
@@ -284,20 +289,50 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
       {/* Footer Action Buttons */}
       <div className="p-4 border-t border-slate-800 bg-slate-950/80 space-y-2">
-        <button
-          id={`btn-quarantine-${node.id}`}
-          onClick={() => onQuarantine(node.id)}
-          className={`w-full py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
-            isQuarantined 
-              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950' 
-              : 'bg-red-600/90 hover:bg-red-600 text-white shadow-lg shadow-red-950'
-          }`}
-        >
-          {isQuarantined ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
-          <span>{isQuarantined ? 'Restore Asset Traffic' : 'Quarantine / Isolate Asset'}</span>
-        </button>
-
         <div className="grid grid-cols-2 gap-2">
+          {/* Quarantine / Isolate Asset */}
+          <button
+            id={`btn-quarantine-${node.id}`}
+            onClick={() => onQuarantine(node.id)}
+            className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              isQuarantined 
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md' 
+                : 'bg-amber-600 hover:bg-amber-500 text-slate-950 shadow-md font-bold'
+            }`}
+          >
+            {isQuarantined ? <Unlock className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
+            <span>{isQuarantined ? 'Un-Isolate' : 'Isolate Device'}</span>
+          </button>
+
+          {/* Fix / Remediate Threat */}
+          {onSolveDeviceProblem && (
+            <button
+              onClick={() => onSolveDeviceProblem(node.id)}
+              className="py-2 px-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-md"
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              <span>Fix Threat</span>
+            </button>
+          )}
+        </div>
+
+        {/* Delete Device Button */}
+        {onDeleteDevice && (
+          <button
+            onClick={() => {
+              if (window.confirm(`Are you sure you want to delete ${node.name}? This will remove it from 3D topology.`)) {
+                onDeleteDevice(node.id);
+                onClose();
+              }
+            }}
+            className="w-full py-1.5 px-3 bg-slate-900 hover:bg-red-950 text-slate-400 hover:text-red-300 border border-slate-800 hover:border-red-800 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+            <span>Delete Device</span>
+          </button>
+        )}
+
+        <div className="grid grid-cols-2 gap-2 pt-1">
           {onNavigateToDetections && (
             <button
               onClick={onNavigateToDetections}

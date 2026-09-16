@@ -111,22 +111,42 @@ ALTER TABLE public.anomalies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 
 -- --------------------------------------------------------------------
--- RLS POLICIES (Allow public/anonymous and authenticated access for app)
+-- RLS POLICIES (Hardened Security Access Control)
 -- --------------------------------------------------------------------
+-- 1. Nodes: Public read for enterprise dashboard topology; Mutations require authenticated user
 DROP POLICY IF EXISTS "Public nodes viewable by everyone" ON public.nodes;
-CREATE POLICY "Public nodes viewable by everyone" ON public.nodes FOR SELECT USING (true);
-
 DROP POLICY IF EXISTS "Public nodes manageable by everyone" ON public.nodes;
-CREATE POLICY "Public nodes manageable by everyone" ON public.nodes FOR ALL USING (true);
 
+CREATE POLICY "Nodes viewable by everyone" ON public.nodes 
+    FOR SELECT USING (true);
+
+CREATE POLICY "Nodes manageable by authenticated users" ON public.nodes 
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.uid() IS NOT NULL OR user_id = auth.uid());
+
+-- 2. Recommendations: Read-only public; Mutations restricted to authenticated users
 DROP POLICY IF EXISTS "Public recommendations manageable by everyone" ON public.recommendations;
-CREATE POLICY "Public recommendations manageable by everyone" ON public.recommendations FOR ALL USING (true);
 
+CREATE POLICY "Recommendations viewable by everyone" ON public.recommendations 
+    FOR SELECT USING (true);
+
+CREATE POLICY "Recommendations manageable by authenticated users" ON public.recommendations 
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.uid() IS NOT NULL);
+
+-- 3. Anomalies: Read-only public; Mutations restricted to authenticated users
 DROP POLICY IF EXISTS "Public anomalies manageable by everyone" ON public.anomalies;
-CREATE POLICY "Public anomalies manageable by everyone" ON public.anomalies FOR ALL USING (true);
 
+CREATE POLICY "Anomalies viewable by everyone" ON public.anomalies 
+    FOR SELECT USING (true);
+
+CREATE POLICY "Anomalies manageable by authenticated users" ON public.anomalies 
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.uid() IS NOT NULL);
+
+-- 4. User Preferences: Strict isolated ownership bound to authenticated user_id
 DROP POLICY IF EXISTS "Public user_preferences manageable by everyone" ON public.user_preferences;
-CREATE POLICY "Public user_preferences manageable by everyone" ON public.user_preferences FOR ALL USING (true);
+
+CREATE POLICY "User preferences owned by user" ON public.user_preferences 
+    FOR ALL USING (auth.uid() = user_id) 
+    WITH CHECK (auth.uid() = user_id);
 
 -- --------------------------------------------------------------------
 -- SEED DEFAULT DEMO DATA

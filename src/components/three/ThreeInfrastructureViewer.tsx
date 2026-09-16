@@ -16,7 +16,7 @@ import {
   X
 } from 'lucide-react';
 import { InfrastructureNode, DataFlowLink, ViewerQuality } from '../../types';
-import { ViewerControls } from './ViewerControls';
+import { ViewerControls, VisualizationMode } from './ViewerControls';
 import { AssetDetailPanel } from './AssetDetailPanel';
 import { TwoDTopologyFallback } from './TwoDTopologyFallback';
 
@@ -26,6 +26,7 @@ interface ThreeInfrastructureViewerProps {
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string | null) => void;
   onQuarantineNode: (nodeId: string) => void;
+  onDeleteDevice?: (nodeId: string) => boolean;
   onSolveDeviceProblem?: (nodeId: string) => void;
   onNavigateToDetections?: () => void;
   onNavigateToRecommendations?: () => void;
@@ -41,6 +42,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
   selectedNodeId,
   onSelectNode,
   onQuarantineNode,
+  onDeleteDevice,
   onSolveDeviceProblem,
   onNavigateToDetections,
   onNavigateToRecommendations,
@@ -55,6 +57,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
   // State
   const [webglAvailable, setWebglAvailable] = useState<boolean>(true);
   const [is2DMode, setIs2DMode] = useState<boolean>(initial2DMode);
+  const [visualizationMode, setVisualizationMode] = useState<VisualizationMode>('infrastructure');
   const [autoRotate, setAutoRotate] = useState<boolean>(false);
   const [is360AutoTour, setIs360AutoTour] = useState<boolean>(false);
   const [showLabels, setShowLabels] = useState<boolean>(true);
@@ -99,6 +102,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
     desiredCameraPos: new THREE.Vector3(),
     targetSpherical: null as THREE.Spherical | null,
     pinchDistance: 0,
+    velocity: { theta: 0, phi: 0 },
     lastCameraMatrix: new THREE.Matrix4(),
     frameCount: 0
   });
@@ -170,7 +174,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
     });
     rendererRef.current = renderer;
     renderer.setSize(width, height);
-    renderer.setPixelRatio(isLowPower ? 1 : Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(isLowPower ? 1 : Math.min(window.devicePixelRatio, 2.0));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
 
@@ -201,8 +205,8 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
     lowerGrid.position.y = -0.12;
     scene.add(lowerGrid);
 
-    // Outer cyber rings (Efficient 32 segments, double-sided)
-    const ringGeo1 = new THREE.RingGeometry(5.8, 5.86, 32);
+    // Outer cyber rings (Smooth 64 segments, double-sided)
+    const ringGeo1 = new THREE.RingGeometry(5.8, 5.86, 64);
     const ringMat1 = new THREE.MeshBasicMaterial({ color: 0x0891b2, side: THREE.DoubleSide, transparent: true, opacity: 0.35 });
     const ringMesh1 = new THREE.Mesh(ringGeo1, ringMat1);
     ringMesh1.rotation.x = Math.PI / 2;
@@ -211,7 +215,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
     ringMesh1.updateMatrix();
     scene.add(ringMesh1);
 
-    const ringGeo2 = new THREE.RingGeometry(8.5, 8.58, 32);
+    const ringGeo2 = new THREE.RingGeometry(8.5, 8.58, 64);
     const ringMat2 = new THREE.MeshBasicMaterial({ color: 0x1d4ed8, side: THREE.DoubleSide, transparent: true, opacity: 0.25 });
     const ringMesh2 = new THREE.Mesh(ringGeo2, ringMat2);
     ringMesh2.rotation.x = Math.PI / 2;
@@ -220,23 +224,23 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
     ringMesh2.updateMatrix();
     scene.add(ringMesh2);
 
-    // Shared Buffer Geometries with Low-Poly High-Performance Tessellation
+    // Shared Buffer Geometries with Smooth Curved Tessellation
     const sharedGeos = {
-      basePedestal: new THREE.CylinderGeometry(0.55, 0.65, 0.12, 8),
-      statusHalo: new THREE.TorusGeometry(0.68, 0.03, 4, 12),
-      selectionAura: new THREE.TorusGeometry(0.85, 0.035, 4, 14),
-      dbCore: new THREE.CylinderGeometry(0.42, 0.42, 0.9, 8),
-      dbDisc: new THREE.TorusGeometry(0.45, 0.02, 4, 10),
+      basePedestal: new THREE.CylinderGeometry(0.55, 0.65, 0.12, 24),
+      statusHalo: new THREE.TorusGeometry(0.68, 0.03, 8, 24),
+      selectionAura: new THREE.TorusGeometry(0.85, 0.035, 8, 32),
+      dbCore: new THREE.CylinderGeometry(0.42, 0.42, 0.9, 24),
+      dbDisc: new THREE.TorusGeometry(0.45, 0.02, 8, 24),
       fwShield: new THREE.BoxGeometry(0.85, 0.95, 0.35),
       fwBar: new THREE.BoxGeometry(0.7, 0.08, 0.38),
-      cloudCluster: new THREE.IcosahedronGeometry(0.45, 0),
-      cloudWire: new THREE.IcosahedronGeometry(0.55, 0),
+      cloudCluster: new THREE.IcosahedronGeometry(0.45, 1),
+      cloudWire: new THREE.IcosahedronGeometry(0.55, 1),
       termBody: new THREE.BoxGeometry(0.65, 0.55, 0.45),
       screenPlane: new THREE.PlaneGeometry(0.5, 0.38),
       rackBody: new THREE.BoxGeometry(0.65, 1.1, 0.65),
       rackLed: new THREE.BoxGeometry(0.5, 0.04, 0.68),
-      packetNormal: new THREE.SphereGeometry(0.06, 4, 4),
-      packetSuspicious: new THREE.SphereGeometry(0.09, 4, 4)
+      packetNormal: new THREE.SphereGeometry(0.06, 12, 12),
+      packetSuspicious: new THREE.SphereGeometry(0.09, 12, 12)
     };
 
     const sharedMats = {
@@ -430,7 +434,7 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         new THREE.Vector3(p2.x, p2.y + 0.45, p2.z)
       ]);
 
-      const points = curve.getPoints(20);
+      const points = curve.getPoints(40);
       const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
       const lineMat = new THREE.LineBasicMaterial({
         color: pair.isSuspicious ? 0xef4444 : 0x0284c7,
@@ -487,11 +491,15 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         const deltaX = e.clientX - orbitState.current.previousMousePosition.x;
         const deltaY = e.clientY - orbitState.current.previousMousePosition.y;
 
-        // True 360 Degree Rotation: No azimuth limit, and full vertical spherical range
-        orbitState.current.spherical.theta -= deltaX * 0.007;
-        orbitState.current.spherical.phi -= deltaY * 0.007;
+        const stepTheta = -deltaX * 0.005;
+        const stepPhi = -deltaY * 0.005;
+
+        orbitState.current.spherical.theta += stepTheta;
+        orbitState.current.spherical.phi += stepPhi;
+        orbitState.current.velocity.theta = stepTheta;
+        orbitState.current.velocity.phi = stepPhi;
         
-        // 360 elevation: allows tilting all the way from zenith (0.05) to nadir (PI - 0.05)
+        // 360 elevation limit
         orbitState.current.spherical.phi = Math.max(0.08, Math.min(Math.PI - 0.08, orbitState.current.spherical.phi));
 
         orbitState.current.previousMousePosition = { x: e.clientX, y: e.clientY };
@@ -662,6 +670,17 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         if (Math.abs(orbitState.current.spherical.theta - targetS.theta) < 0.005 &&
             Math.abs(orbitState.current.spherical.phi - targetS.phi) < 0.005) {
           orbitState.current.targetSpherical = null;
+        }
+      }
+
+      // Inertial physical momentum glide
+      if (!orbitState.current.isDragging && !orbitState.current.isPanning) {
+        if (Math.abs(orbitState.current.velocity.theta) > 0.0001 || Math.abs(orbitState.current.velocity.phi) > 0.0001) {
+          orbitState.current.spherical.theta += orbitState.current.velocity.theta;
+          orbitState.current.spherical.phi += orbitState.current.velocity.phi;
+          orbitState.current.spherical.phi = Math.max(0.08, Math.min(Math.PI - 0.08, orbitState.current.spherical.phi));
+          orbitState.current.velocity.theta *= 0.92;
+          orbitState.current.velocity.phi *= 0.92;
         }
       }
 
@@ -1031,6 +1050,8 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         onChangeQuality={setQuality}
         is2DMode={is2DMode}
         onToggle2DMode={() => setIs2DMode((prev) => !prev)}
+        visualizationMode={visualizationMode}
+        onChangeVisualizationMode={setVisualizationMode}
         showDevMetrics={showDevMetrics}
         onToggleDevMetrics={() => setShowDevMetrics((prev) => !prev)}
         fps={fps}
@@ -1048,6 +1069,8 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         node={selectedNode}
         onClose={() => onSelectNode(null)}
         onQuarantine={onQuarantineNode}
+        onDeleteDevice={onDeleteDevice}
+        onSolveDeviceProblem={onSolveDeviceProblem}
         onNavigateToDetections={onNavigateToDetections}
         onNavigateToRecommendations={onNavigateToRecommendations}
       />

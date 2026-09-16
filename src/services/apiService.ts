@@ -18,6 +18,8 @@ import {
   INITIAL_ENTERPRISE_RISK
 } from '../data/cyberData';
 import { supabaseDatabaseService } from './supabaseService';
+import { sanitizeObject } from '../utils/security';
+import { calculateEnterpriseRiskScore, calculateRiskLevel } from '../utils/riskCalculator';
 
 export interface AppState {
   nodes: InfrastructureNode[];
@@ -171,20 +173,33 @@ class CyberRiskApiService {
 
   private recalculateSummary() {
     const highRiskCount = this.nodes.filter(n => n.riskScore >= 70).length;
+    const compromisedCount = this.nodes.filter(n => n.status === 'under-investigation' || n.status === 'degraded' || n.riskScore >= 60).length;
     const criticalAnoms = this.anomalies.filter(a => a.severity === 'critical' && a.status === 'active').length;
-    const totalExposure = this.nodes.reduce((acc, n) => acc + n.financialExposure, 0);
-    const avgRisk = Math.round(this.nodes.reduce((acc, n) => acc + n.riskScore, 0) / (this.nodes.length || 1));
+    const openIncidents = this.investigations.filter(i => i.status === 'open' || i.status === 'containment-in-progress').length;
+    const totalExposure = this.nodes.reduce((acc, n) => acc + (n.financialExposure || 0), 0);
+    
+    // Dynamic Risk Score calculation
+    const calculatedScore = calculateEnterpriseRiskScore(this.nodes, this.anomalies, this.investigations);
+    const calculatedLevel = calculateRiskLevel(calculatedScore);
 
     this.riskSummary = {
       ...this.riskSummary,
-      overallRiskScore: avgRisk,
-      highRiskAssetsCount: highRiskCount,
-      criticalAnomaliesCount: criticalAnoms,
+      enterpriseRiskScore: calculatedScore,
+      overallRiskScore: calculatedScore,
+      riskLevel: calculatedLevel,
+      monitoredDevices: this.nodes.length,
       activeAssetsCount: this.nodes.filter(n => n.status !== 'quarantined').length,
+      compromisedDevices: compromisedCount,
+      highRiskAssetsCount: highRiskCount,
+      criticalIncidents: openIncidents > 0 ? openIncidents : criticalAnoms,
+      criticalAnomaliesCount: criticalAnoms,
+      estimatedFinancialExposure: Math.round(totalExposure / 10), // Convert to INR scale estimate
+      currency: 'INR',
+      lastUpdated: new Date().toISOString(),
       fairMetrics: {
         ...this.riskSummary.fairMetrics,
-        totalExpectedLossUSD: Math.round(totalExposure * (avgRisk / 100) * 0.4),
-        annualizedLossExposureUSD: Math.round(totalExposure * (avgRisk / 100) * 0.16)
+        totalExpectedLossUSD: Math.round(totalExposure * (calculatedScore / 100) * 0.4),
+        annualizedLossExposureUSD: Math.round(totalExposure * (calculatedScore / 100) * 0.16)
       }
     };
   }
@@ -272,14 +287,15 @@ class CyberRiskApiService {
   }
 
   public addDevice(nodeData: Omit<InfrastructureNode, 'id' | 'lastUpdated'>): InfrastructureNode {
+    const sanitizedData = sanitizeObject(nodeData);
     const id = `node-dev-${Date.now()}`;
     const defaultConnections = ['node-load-balancer', 'node-dc-core'];
-    const connections = nodeData.connections && nodeData.connections.length > 0
-      ? nodeData.connections
+    const connections = sanitizedData.connections && sanitizedData.connections.length > 0
+      ? sanitizedData.connections
       : defaultConnections;
 
     const newDevice: InfrastructureNode = {
-      ...nodeData,
+      ...sanitizedData,
       id,
       connections,
       lastUpdated: 'Just now (Added & Connected)'

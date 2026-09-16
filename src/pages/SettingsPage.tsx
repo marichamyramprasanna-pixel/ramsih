@@ -3,6 +3,7 @@ import {
   Settings, 
   Cpu, 
   Eye, 
+  EyeOff,
   RotateCcw, 
   Radio, 
   Sliders, 
@@ -21,6 +22,7 @@ import { UserPreferences } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { getSupabaseCredentials, saveSupabaseCredentials, testSupabaseConnection } from '../lib/supabase';
 import { apiService } from '../services/apiService';
+import { SecurityHardeningPanel } from '../components/security/SecurityHardeningPanel';
 
 interface SettingsPageProps {
   preferences: UserPreferences;
@@ -40,6 +42,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   
   const [supabaseUrl, setSupabaseUrl] = React.useState(credentials.url);
   const [supabaseKey, setSupabaseKey] = React.useState(credentials.key);
+  const [showSupabaseSecrets, setShowSupabaseSecrets] = useState(false);
   const [testResult, setTestResult] = React.useState<{ success: boolean; message: string } | null>(connectionStatus);
   const [isTesting, setIsTesting] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
@@ -84,6 +87,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
       {/* Settings Sections */}
       <div className="space-y-6">
+
+        {/* Security Posture & Hardening Audit Panel */}
+        <SecurityHardeningPanel />
         
         {/* Supabase Database & Auth Configuration */}
         <div className="p-5 bg-[#090d15] border border-slate-800 rounded-2xl space-y-4">
@@ -120,18 +126,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <div>
               <label className="block text-xs text-slate-300 font-medium mb-1.5 flex items-center justify-between">
                 <span>Supabase Project URL</span>
-                <a
-                  href="https://supabase.com/dashboard"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
-                >
-                  <span>Dashboard</span>
-                  <ExternalLink className="w-2.5 h-2.5" />
-                </a>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSupabaseSecrets(!showSupabaseSecrets)}
+                    className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    {showSupabaseSecrets ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    <span>{showSupabaseSecrets ? 'Hide URL' : 'Show URL'}</span>
+                  </button>
+                  <a
+                    href="https://supabase.com/dashboard"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1"
+                  >
+                    <span>Dashboard</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
               </label>
               <input
-                type="url"
+                type={showSupabaseSecrets ? "text" : "password"}
                 required
                 value={supabaseUrl}
                 onChange={(e) => setSupabaseUrl(e.target.value)}
@@ -141,11 +157,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs text-slate-300 font-medium mb-1.5">
-                Supabase Anon API Key
+              <label className="block text-xs text-slate-300 font-medium mb-1.5 flex items-center justify-between">
+                <span>Supabase Anon API Key</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSupabaseSecrets(!showSupabaseSecrets)}
+                  className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                >
+                  {showSupabaseSecrets ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  <span>{showSupabaseSecrets ? 'Hide Key' : 'Show Key'}</span>
+                </button>
               </label>
               <input
-                type="password"
+                type={showSupabaseSecrets ? "text" : "password"}
                 required
                 value={supabaseKey}
                 onChange={(e) => setSupabaseKey(e.target.value)}
