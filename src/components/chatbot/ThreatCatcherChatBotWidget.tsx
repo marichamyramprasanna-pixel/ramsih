@@ -330,7 +330,7 @@ The current risk score is calculated from behavioral anomalies, compromise proba
       {!isOpen && (
         <button
           onClick={() => { setIsOpen(true); setIsMinimized(false); }}
-          className="fixed bottom-6 right-6 z-40 p-3 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-slate-950 font-bold rounded-2xl shadow-2xl shadow-cyan-950/60 border border-cyan-300 flex items-center gap-3 transition-all hover:scale-105 cursor-pointer group animate-in fade-in zoom-in-90"
+          className="fixed bottom-6 right-6 z-40 p-3 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-slate-950 font-bold rounded-2xl shadow-2xl shadow-cyan-950/60 border border-cyan-300 flex items-center gap-3 transition-all hover:scale-105 cursor-pointer group animate-in fade-in zoom-in-90 print:hidden"
         >
           <div className="relative">
             <div className="w-10 h-10 rounded-xl bg-slate-950/90 border border-cyan-400 flex items-center justify-center text-cyan-300 font-mono font-black text-sm shadow-md">
@@ -363,7 +363,7 @@ The current risk score is calculated from behavioral anomalies, compromise proba
       {/* Expanded AI Chat Bot Window */}
       {isOpen && (
         <div
-          className={`fixed bottom-6 right-6 z-50 w-full max-w-[440px] bg-[#080d19]/95 border border-cyan-500/40 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col transition-all duration-200 overflow-hidden font-sans ${
+          className={`fixed bottom-6 right-6 z-50 w-full max-w-[440px] bg-[#080d19]/95 border border-cyan-500/40 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col transition-all duration-200 overflow-hidden font-sans print:hidden ${
             isMinimized ? 'h-16' : 'h-[600px] max-h-[88vh]'
           }`}
         >

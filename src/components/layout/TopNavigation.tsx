@@ -51,7 +51,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   return (
-    <header className="h-14 bg-[#080b11] border-b border-slate-800/80 px-4 flex items-center justify-between gap-4 z-40 select-none">
+    <header className="h-14 bg-[#080b11] border-b border-slate-800/80 px-4 flex items-center justify-between gap-4 z-40 select-none print:hidden">
       {/* Brand & Identity */}
       <div className="flex items-center gap-3">
         <button

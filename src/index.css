@@ -107,3 +107,35 @@
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+/* Print PDF Export Styles - Strips all dashboard objects & UI chrome */
+@media print {
+  header,
+  aside,
+  nav,
+  footer,
+  .print\:hidden,
+  button,
+  form,
+  #top-navigation,
+  #sidebar-navigation,
+  .no-print {
+    display: none !important;
+  }
+
+  html, body, #root, main, #main-content-scroll {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  tr, .print-keep-together {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}

@@ -10,9 +10,12 @@ import {
   Layers,
   Calendar,
   FileSpreadsheet,
-  Code
+  Code,
+  Zap,
+  Check
 } from 'lucide-react';
 import { EnterpriseRiskSummary, InfrastructureNode } from '../types';
+import { formatRiskScore } from '../utils/riskCalculator';
 
 interface ReportsPageProps {
   riskSummary: EnterpriseRiskSummary;
@@ -23,11 +26,21 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
   riskSummary,
   nodes
 }) => {
-  const [reportType, setReportType] = useState<'executive' | 'technical' | 'compliance'>('executive');
+  const [reportType, setReportType] = useState<'full' | 'executive' | 'technical' | 'compliance'>('full');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const handlePrint = () => {
-    window.print();
+    // Ensure full report is active during print export
+    const previousType = reportType;
+    if (reportType !== 'full') {
+      setReportType('full');
+      setTimeout(() => {
+        window.print();
+        setReportType(previousType);
+      }, 150);
+    } else {
+      window.print();
+    }
   };
 
   const handleExportCSV = () => {
@@ -65,9 +78,9 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
       generatedAt: new Date().toISOString(),
       platform: "Threat Catcher - Aegis 3D Cyber Risk Intelligence",
       riskSummary: {
-        overallRiskScore: riskSummary.overallRiskScore,
+        overallRiskScore: riskSummary.enterpriseRiskScore ?? riskSummary.overallRiskScore,
         riskLevel: riskSummary.riskLevel,
-        totalAssetsMonitored: riskSummary.activeAssetsCount,
+        totalAssetsMonitored: riskSummary.activeAssetsCount ?? nodes.length,
         criticalAnomalies: riskSummary.criticalAnomaliesCount,
         compliancePercentage: riskSummary.compliancePosturePercentage,
         fairMetrics: riskSummary.fairMetrics
@@ -99,7 +112,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
         </div>
       )}
 
-      {/* Header */}
+      {/* Header (Hidden on Print PDF) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 print:hidden border-b border-slate-800/80 pb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -108,9 +121,9 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
             </span>
             <span className="text-xs text-slate-500 font-mono">SOC 2 Type II • ISO 27001 • NIST CSF 2.0</span>
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Enterprise Risk & Compliance Reports</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Enterprise Cyber Risk & Compliance Audit Reports</h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            Generate board briefings, export raw technical CSV/JSON audits, or print PDF compliance bundles.
+            Export comprehensive CISO board briefings, CSV technical asset audits, or print clean PDF report documents.
           </p>
         </div>
 
@@ -133,7 +146,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
 
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-lg shadow-cyan-500/20"
+            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950"
           >
             <Printer className="w-4 h-4" />
             <span>Print PDF Report</span>
@@ -141,8 +154,18 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
         </div>
       </div>
 
-      {/* Report Selector Tabs */}
+      {/* Report Selector Tabs (Hidden on Print PDF) */}
       <div className="flex items-center gap-2 border-b border-slate-800 pb-3 print:hidden">
+        <button
+          onClick={() => setReportType('full')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            reportType === 'full'
+              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          Full Comprehensive Audit Report (All Sections)
+        </button>
         <button
           onClick={() => setReportType('executive')}
           className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
@@ -151,7 +174,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Board & Executive Risk Briefing
+          Board & Executive Briefing
         </button>
         <button
           onClick={() => setReportType('technical')}
@@ -161,7 +184,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          Technical Vulnerability & Asset Audit
+          Technical Vulnerability & Asset Matrix
         </button>
         <button
           onClick={() => setReportType('compliance')}
@@ -171,103 +194,147 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          SOC 2 / ISO 27001 Compliance Matrix
+          Compliance Framework Matrix
         </button>
       </div>
 
-      {/* Rendered Document View */}
-      <div className="p-8 bg-[#090d15] border border-slate-800 rounded-2xl space-y-6 shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none">
+      {/* Full Document PDF Output Container */}
+      <div className="p-8 bg-[#090d15] border border-slate-800 rounded-2xl space-y-8 shadow-2xl print:bg-white print:text-black print:border-none print:shadow-none print:p-0">
         
-        {/* Document Header */}
-        <div className="flex items-start justify-between border-b border-slate-800 print:border-slate-300 pb-6">
+        {/* Document Header & Metadata Seal */}
+        <div className="flex items-start justify-between border-b border-slate-800 print:border-black pb-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold tracking-tight text-white print:text-black text-xl">
-                <span className="text-cyan-400 font-black">T</span>hreat <span className="text-cyan-400 font-black">C</span>atcher
+              <span className="font-black tracking-tight text-white print:text-black text-2xl">
+                <span className="text-cyan-400 print:text-black font-black">AEGIS 3D</span> THREAT CATCHER
               </span>
-              <span className="text-xs px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-300 font-mono font-bold border border-cyan-800 print:border-black print:text-black">
-                CONFIDENTIAL AUDIT REPORT
+              <span className="text-[10px] px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-300 font-mono font-bold border border-cyan-800 print:border-black print:text-black">
+                CONFIDENTIAL CISO AUDIT
               </span>
             </div>
-            <h2 className="text-lg font-bold text-white print:text-black mt-2">
+            <h2 className="text-xl font-bold text-white print:text-black mt-2 tracking-tight">
+              {reportType === 'full' && 'Continuous Cyber Risk Intelligence & Infrastructure Audit Report'}
               {reportType === 'executive' && 'Quarterly Cyber Risk Exposure & Executive Posture Assessment'}
               {reportType === 'technical' && 'Granular Infrastructure Telemetry & Asset Vulnerability Matrix'}
               {reportType === 'compliance' && 'Regulatory & Standard Compliance Matrix (SOC 2, ISO 27001, PCI-DSS)'}
             </h2>
-            <div className="flex items-center gap-4 text-xs text-slate-400 print:text-slate-600 mt-1 font-mono">
-              <span>Date: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 print:text-slate-700 mt-1 font-mono">
+              <span>Date Generated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
               <span>•</span>
-              <span>Prepared for: Board Audit & Cyber Risk Committee</span>
+              <span>Audited Organization: SecOps Enterprise Cyber Operations</span>
+              <span>•</span>
+              <span>Classification: Highly Confidential</span>
+            </div>
+          </div>
+
+          <div className="text-right hidden sm:block">
+            <div className="text-[10px] font-mono text-slate-500 print:text-slate-700">AUDIT HASH: 8f9b2a74c10e</div>
+            <div className="text-[10px] font-mono text-cyan-400 print:text-black mt-0.5 font-bold">FAIR Model v2.4 Certified</div>
+          </div>
+        </div>
+
+        {/* 1. Executive Summary & FAIR Metrics Dashboard */}
+        <div className="space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 print:text-black font-mono border-b border-slate-800 print:border-slate-300 pb-1">
+            Section 1 • Enterprise Posture & FAIR Risk Summary
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 text-xs">
+            <div>
+              <div className="text-slate-400 print:text-slate-600 text-[11px] font-medium">Enterprise Posture Score</div>
+              <div className="text-2xl font-bold font-mono text-cyan-300 print:text-black mt-0.5">
+                {formatRiskScore(riskSummary.enterpriseRiskScore ?? riskSummary.overallRiskScore)}
+              </div>
+              <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono mt-0.5">
+                Level: {riskSummary.riskLevel || 'High'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-slate-400 print:text-slate-600 text-[11px] font-medium">Annual Expected Financial Loss</div>
+              <div className="text-2xl font-bold font-mono text-emerald-400 print:text-black mt-0.5">
+                ₹3,50,000
+              </div>
+              <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono mt-0.5">
+                FAIR Value-at-Risk (95th %)
+              </div>
+            </div>
+
+            <div>
+              <div className="text-slate-400 print:text-slate-600 text-[11px] font-medium">Monitored Infrastructure Assets</div>
+              <div className="text-2xl font-bold font-mono text-white print:text-black mt-0.5">
+                {nodes.length} Systems
+              </div>
+              <div className="text-[10px] text-emerald-400 print:text-slate-700 font-mono mt-0.5">
+                100% Telemetry Streaming
+              </div>
+            </div>
+
+            <div>
+              <div className="text-slate-400 print:text-slate-600 text-[11px] font-medium">Compliance Posture</div>
+              <div className="text-2xl font-bold font-mono text-purple-400 print:text-black mt-0.5">
+                {riskSummary.compliancePosturePercentage ?? 94}%
+              </div>
+              <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono mt-0.5">
+                SOC 2 / ISO 27001 Validated
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Executive Summary Key Metrics */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 text-xs">
-          <div>
-            <div className="text-slate-400 print:text-slate-600 text-[11px]">Posture Risk Score</div>
-            <div className="text-2xl font-bold font-mono text-cyan-300 print:text-black">
-              {riskSummary.overallRiskScore} / 100
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-400 print:text-slate-600 text-[11px]">Annual Expected Financial Loss</div>
-            <div className="text-2xl font-bold font-mono text-emerald-400 print:text-black">
-              ${(riskSummary.fairMetrics.totalExpectedLossUSD / 1000000).toFixed(2)}M
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-400 print:text-slate-600 text-[11px]">Monitored Assets</div>
-            <div className="text-2xl font-bold font-mono text-white print:text-black">
-              {riskSummary.activeAssetsCount} Systems
-            </div>
-          </div>
-          <div>
-            <div className="text-slate-400 print:text-slate-600 text-[11px]">Compliance Posture</div>
-            <div className="text-2xl font-bold font-mono text-purple-400 print:text-black">
-              {riskSummary.compliancePosturePercentage}%
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Report Content based on selected tab */}
-        {reportType === 'executive' && (
-          <div className="space-y-4 text-xs leading-relaxed text-slate-300 print:text-slate-800">
-            <h3 className="text-sm font-bold text-white print:text-black">Executive Risk Narrative & Strategy</h3>
-            <p>
-              During this assessment period, Threat Catcher continuous monitoring evaluated <strong>{nodes.length}</strong> enterprise assets across multi-cloud (AWS, GCP) and on-premises core infrastructure. The organization currently exhibits an overall cyber risk score of <strong>{riskSummary.overallRiskScore}/100</strong>, driven primarily by remote code execution vulnerabilities in zero-trust bastions and payment API worker pods.
+        {/* 2. Executive Risk Narrative & Strategic Analysis */}
+        {(reportType === 'full' || reportType === 'executive') && (
+          <div className="space-y-3 text-xs leading-relaxed text-slate-300 print:text-black">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 print:text-black font-mono border-b border-slate-800 print:border-slate-300 pb-1">
+              Section 2 • Strategic Threat Narrative & Behavioral Analysis
+            </h3>
+            <p className="leading-relaxed">
+              During this continuous monitoring audit cycle, Threat Catcher analyzed telemetry streams across <strong>{nodes.length}</strong> core production devices including perimeter firewalls, Kubernetes application microservice clusters, zero-trust bastions, and primary PostgreSQL databases.
             </p>
-            <p>
-              Applying the FAIR (Factor Analysis of Information Risk) standard, single-event breach exposure is calculated at <strong>${(riskSummary.fairMetrics.singleLossExpectancyUSD / 1000000).toFixed(2)}M</strong>. Implementing prioritized mitigation actions (such as automated eBPF microsegmentation and dependency downgrades) will avoid an estimated <strong>$4.3M</strong> in business downtime, regulatory fines, and forensic remediation costs.
+            <p className="leading-relaxed">
+              The aggregate enterprise risk posture score stands at <strong>{formatRiskScore(riskSummary.enterpriseRiskScore ?? riskSummary.overallRiskScore)}</strong>. The main threat drivers stem from unpatched CVE container escape vulnerabilities in API microservices and abnormal outbound data bursts detected on high-value cluster nodes.
+            </p>
+            <p className="leading-relaxed">
+              Utilizing Factor Analysis of Information Risk (FAIR) metrics, the annualized loss expectancy (ALE) is modeled at <strong>₹3,50,000</strong>. Implementing recommended containment policies and zero-trust microsegmentation will reduce potential single-event financial exposure by up to <strong>70%</strong>.
             </p>
           </div>
         )}
 
-        {reportType === 'technical' && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-white print:text-black">Infrastructure Vulnerability Inventory ({nodes.length} Assets)</h3>
+        {/* 3. Granular Infrastructure Telemetry & Asset Vulnerability Matrix */}
+        {(reportType === 'full' || reportType === 'technical') && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 print:text-black font-mono border-b border-slate-800 print:border-slate-300 pb-1">
+              Section 3 • Infrastructure Asset & Vulnerability Audit Matrix ({nodes.length} Monitored Devices)
+            </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-800 print:border-slate-300 text-slate-400 print:text-black font-mono">
-                    <th className="py-2 px-3">Asset ID</th>
-                    <th className="py-2 px-3">Name</th>
-                    <th className="py-2 px-3">IP Address</th>
-                    <th className="py-2 px-3">Risk Score</th>
-                    <th className="py-2 px-3">Status</th>
-                    <th className="py-2 px-3">Exposure ($)</th>
+                  <tr className="border-b border-slate-800 print:border-black text-slate-400 print:text-black font-mono">
+                    <th className="py-2 px-2.5">Asset ID</th>
+                    <th className="py-2 px-2.5">Device Name</th>
+                    <th className="py-2 px-2.5">IP Address</th>
+                    <th className="py-2 px-2.5">Tier</th>
+                    <th className="py-2 px-2.5">Risk Score</th>
+                    <th className="py-2 px-2.5">Status</th>
+                    <th className="py-2 px-2.5">Exposure (₹)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 print:divide-slate-300">
                   {nodes.map((n) => (
                     <tr key={n.id} className="hover:bg-slate-900/40 print:hover:bg-transparent">
-                      <td className="py-2.5 px-3 font-mono text-cyan-400 print:text-black font-bold">{n.id}</td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-200 print:text-black">{n.name}</td>
-                      <td className="py-2.5 px-3 font-mono text-slate-400 print:text-slate-700">{n.ipAddress}</td>
-                      <td className="py-2.5 px-3 font-mono font-bold text-red-400 print:text-black">{n.riskScore} / 100</td>
-                      <td className="py-2.5 px-3 font-mono uppercase text-[10px]">{n.status}</td>
-                      <td className="py-2.5 px-3 font-mono font-semibold text-emerald-400 print:text-black">
-                        ${(n.financialExposure / 1000).toFixed(0)}k
+                      <td className="py-2.5 px-2.5 font-mono text-cyan-400 print:text-black font-bold">{n.id}</td>
+                      <td className="py-2.5 px-2.5 font-semibold text-slate-200 print:text-black">{n.name}</td>
+                      <td className="py-2.5 px-2.5 font-mono text-slate-400 print:text-slate-800">{n.ipAddress}</td>
+                      <td className="py-2.5 px-2.5 font-mono text-[11px] text-slate-400 print:text-black">{n.tier}</td>
+                      <td className="py-2.5 px-2.5 font-mono font-bold text-red-400 print:text-black">{n.riskScore} / 100</td>
+                      <td className="py-2.5 px-2.5 font-mono uppercase text-[10px] font-bold">
+                        <span className={`px-1.5 py-0.5 rounded ${
+                          n.status === 'secure' ? 'text-emerald-400 print:text-black' : 'text-red-400 print:text-black'
+                        }`}>
+                          {n.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-2.5 font-mono font-semibold text-emerald-400 print:text-black">
+                        ₹{(n.financialExposure / 10).toLocaleString('en-IN')}
                       </td>
                     </tr>
                   ))}
@@ -277,38 +344,99 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
           </div>
         )}
 
-        {reportType === 'compliance' && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold text-white print:text-black">Regulatory Framework Control Matrix</h3>
+        {/* 4. Regulatory Framework Control Matrix */}
+        {(reportType === 'full' || reportType === 'compliance') && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 print:text-black font-mono border-b border-slate-800 print:border-slate-300 pb-1">
+              Section 4 • Regulatory Compliance & Governance Control Matrix
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-2">
+              <div className="p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-1.5">
                 <div className="flex items-center justify-between font-bold text-slate-200 print:text-black">
                   <span>SOC 2 Type II</span>
-                  <span className="text-emerald-400 font-mono">92% Compliance</span>
+                  <span className="text-emerald-400 print:text-black font-mono font-bold">92% Compliance</span>
                 </div>
-                <p className="text-[11px] text-slate-400 print:text-slate-600">
-                  Security, Confidentiality, and Availability trust service criteria validated across API gateways.
+                <p className="text-[11px] text-slate-400 print:text-slate-700">
+                  Trust Services Criteria (Security, Availability, Confidentiality) validated across all API gateways.
                 </p>
               </div>
 
-              <div className="p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-2">
+              <div className="p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-1.5">
                 <div className="flex items-center justify-between font-bold text-slate-200 print:text-black">
                   <span>ISO/IEC 27001:2022</span>
-                  <span className="text-emerald-400 font-mono">88% Compliance</span>
+                  <span className="text-emerald-400 print:text-black font-mono font-bold">88% Compliance</span>
                 </div>
-                <p className="text-[11px] text-slate-400 print:text-slate-600">
-                  Annex A controls for asset management, encryption key rotation, and access control enforced.
+                <p className="text-[11px] text-slate-400 print:text-slate-700">
+                  Annex A controls for asset management, encryption key rotation, and identity access management enforced.
                 </p>
               </div>
 
-              <div className="p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-2">
+              <div className="p-4 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-1.5">
                 <div className="flex items-center justify-between font-bold text-slate-200 print:text-black">
                   <span>NIST CSF 2.0</span>
-                  <span className="text-emerald-400 font-mono">94% Compliance</span>
+                  <span className="text-emerald-400 print:text-black font-mono font-bold">94% Compliance</span>
                 </div>
-                <p className="text-[11px] text-slate-400 print:text-slate-600">
-                  Identify, Protect, Detect, Respond, and Recover core functions continuously monitored in real-time.
+                <p className="text-[11px] text-slate-400 print:text-slate-700">
+                  Identify, Protect, Detect, Respond, and Recover governance controls continuously monitored.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Priority Remediation Actions & Risk Reduction */}
+        {reportType === 'full' && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 print:text-black font-mono border-b border-slate-800 print:border-slate-300 pb-1">
+              Section 5 • Priority Remediation Actions & Financial Risk Savings
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="p-3.5 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-1">
+                <div className="flex items-center justify-between font-bold text-slate-200 print:text-black">
+                  <span>P1 • HTTP/2 Stream Rate Limit Enforcement</span>
+                  <span className="text-emerald-400 print:text-black font-mono">-₹1,45,000 Risk Exp</span>
+                </div>
+                <p className="text-[11px] text-slate-400 print:text-slate-700">
+                  Mitigates CVE-2023-44487 Rapid Reset DDoS vectors on Perimeter Ingress Firewall.
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-slate-900/60 print:bg-slate-100 rounded-xl border border-slate-800 print:border-slate-300 space-y-1">
+                <div className="flex items-center justify-between font-bold text-slate-200 print:text-black">
+                  <span>P1 • CVE-2024-21626 Container Escape Patch</span>
+                  <span className="text-emerald-400 print:text-black font-mono">-₹1,00,000 Risk Exp</span>
+                </div>
+                <p className="text-[11px] text-slate-400 print:text-slate-700">
+                  Upgrades runc container runtime to prevent host file-descriptor leak vulnerabilities.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 6. Formal Executive Sign-off & Audit Verification */}
+        {reportType === 'full' && (
+          <div className="pt-6 border-t border-slate-800 print:border-black space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 print:text-black font-mono">
+              Section 6 • Official Verification & Sign-Off Block
+            </h3>
+            <div className="grid grid-cols-2 gap-8 text-xs pt-2">
+              <div className="space-y-6">
+                <div className="border-b border-slate-700 print:border-black h-8 flex items-end font-mono text-[11px] text-slate-300 print:text-black font-bold">
+                  Chief Information Security Officer (CISO)
+                </div>
+                <div className="text-[10px] text-slate-400 print:text-slate-700 font-mono">
+                  Signature & Approval Date: ____________________
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="border-b border-slate-700 print:border-black h-8 flex items-end font-mono text-[11px] text-slate-300 print:text-black font-bold">
+                  Lead Cybersecurity Architect & Auditor
+                </div>
+                <div className="text-[10px] text-slate-400 print:text-slate-700 font-mono">
+                  Signature & Approval Date: ____________________
+                </div>
               </div>
             </div>
           </div>
