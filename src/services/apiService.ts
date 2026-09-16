@@ -273,12 +273,34 @@ class CyberRiskApiService {
 
   public addDevice(nodeData: Omit<InfrastructureNode, 'id' | 'lastUpdated'>): InfrastructureNode {
     const id = `node-dev-${Date.now()}`;
+    const defaultConnections = ['node-load-balancer', 'node-dc-core'];
+    const connections = nodeData.connections && nodeData.connections.length > 0
+      ? nodeData.connections
+      : defaultConnections;
+
     const newDevice: InfrastructureNode = {
       ...nodeData,
       id,
-      lastUpdated: 'Just now (Added)'
+      connections,
+      lastUpdated: 'Just now (Added & Connected)'
     };
     this.nodes.push(newDevice);
+
+    // Automatically generate DataFlowLinks for each connection
+    connections.forEach((targetId, idx) => {
+      const existingLink = this.dataFlows.find(l => (l.source === id && l.target === targetId) || (l.source === targetId && l.target === id));
+      if (!existingLink) {
+        this.dataFlows.push({
+          id: `flow-auto-${Date.now()}-${idx}`,
+          source: id,
+          target: targetId,
+          protocol: 'HTTPS',
+          trafficVolumeMbps: Math.floor(Math.random() * 400) + 150,
+          isSuspicious: newDevice.riskScore >= 70
+        });
+      }
+    });
+
     this.recalculateSummary();
     this.persist();
     this.notify();

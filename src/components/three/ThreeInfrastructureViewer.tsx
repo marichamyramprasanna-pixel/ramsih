@@ -76,7 +76,16 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const nodeMeshesRef = useRef<Map<string, THREE.Group>>(new Map());
-  const flowCurvesRef = useRef<{ curve: THREE.CatmullRomCurve3; packetMesh: THREE.Mesh; isSuspicious: boolean; speed: number; progress: number }[]>([]);
+  const flowCurvesRef = useRef<{ 
+    curve: THREE.CatmullRomCurve3; 
+    packetMesh: THREE.Mesh; 
+    lineMesh: THREE.Line;
+    sourceId: string;
+    targetId: string;
+    isSuspicious: boolean; 
+    speed: number; 
+    progress: number;
+  }[]>([]);
   const animFrameIdRef = useRef<number | null>(null);
 
   // Camera animation & 360 Orbit state
@@ -372,60 +381,83 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
       nodeMeshesRef.current.set(node.id, nodeGroup);
     });
 
-    // 7. Data Flow Pipelines & Packets (Shared Assets)
+    // 7. Data Flow Pipelines & Packets (Connecting All Infrastructure Nodes)
     flowCurvesRef.current = [];
-    const linkMaterialNormal = new THREE.LineBasicMaterial({
-      color: 0x0284c7,
-      transparent: true,
-      opacity: 0.45
-    });
-    const linkMaterialSuspicious = new THREE.LineBasicMaterial({
-      color: 0xef4444,
-      transparent: true,
-      opacity: 0.85
+
+    // Collect all explicit links and implicit node connections
+    const connectionPairs: { source: string; target: string; isSuspicious: boolean; protocol?: string }[] = [];
+    const addedPairKeys = new Set<string>();
+
+    const addPair = (source: string, target: string, isSuspicious: boolean, protocol?: string) => {
+      const key = [source, target].sort().join('<->');
+      if (!addedPairKeys.has(key)) {
+        addedPairKeys.add(key);
+        connectionPairs.push({ source, target, isSuspicious, protocol });
+      }
+    };
+
+    // Add explicit DataFlowLinks
+    links.forEach((l) => addPair(l.source, l.target, l.isSuspicious, l.protocol));
+
+    // Add implicit connections defined on nodes
+    nodes.forEach((n) => {
+      if (n.connections && Array.isArray(n.connections)) {
+        n.connections.forEach((targetId) => {
+          const targetNode = nodes.find(t => t.id === targetId);
+          if (targetNode) {
+            const isSusp = n.riskScore >= 70 || targetNode.riskScore >= 70;
+            addPair(n.id, targetId, isSusp, 'TLS-DB');
+          }
+        });
+      }
     });
 
-    links.forEach((link) => {
-      const sNode = nodes.find((n) => n.id === link.source);
-      const tNode = nodes.find((n) => n.id === link.target);
+    // Build 3D CatmullRom splines and data packet meshes for each connection pair
+    connectionPairs.forEach((pair) => {
+      const sNode = nodes.find((n) => n.id === pair.source);
+      const tNode = nodes.find((n) => n.id === pair.target);
       if (!sNode || !tNode) return;
 
       const p1 = new THREE.Vector3(...sNode.position3D);
       const p2 = new THREE.Vector3(...tNode.position3D);
 
-      const mid = new THREE.Vector3()
-        .addVectors(p1, p2)
-        .multiplyScalar(0.5);
-      mid.y += Math.max(0.6, p1.distanceTo(p2) * 0.22);
+      const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+      mid.y += Math.max(0.5, p1.distanceTo(p2) * 0.2);
 
       const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(p1.x, p1.y + 0.5, p1.z),
+        new THREE.Vector3(p1.x, p1.y + 0.45, p1.z),
         mid,
-        new THREE.Vector3(p2.x, p2.y + 0.5, p2.z)
+        new THREE.Vector3(p2.x, p2.y + 0.45, p2.z)
       ]);
 
-      const points = curve.getPoints(18);
+      const points = curve.getPoints(20);
       const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMesh = new THREE.Line(
-        lineGeo,
-        link.isSuspicious ? linkMaterialSuspicious : linkMaterialNormal
-      );
+      const lineMat = new THREE.LineBasicMaterial({
+        color: pair.isSuspicious ? 0xef4444 : 0x0284c7,
+        transparent: true,
+        opacity: pair.isSuspicious ? 0.85 : 0.45
+      });
+
+      const lineMesh = new THREE.Line(lineGeo, lineMat);
       lineMesh.matrixAutoUpdate = false;
       lineMesh.updateMatrix();
       scene.add(lineMesh);
 
       // Reusable data packet mesh
       const packetMesh = new THREE.Mesh(
-        link.isSuspicious ? sharedGeos.packetSuspicious : sharedGeos.packetNormal,
-        link.isSuspicious ? sharedMats.packetSuspicious : sharedMats.packetNormal
+        pair.isSuspicious ? sharedGeos.packetSuspicious : sharedGeos.packetNormal,
+        pair.isSuspicious ? sharedMats.packetSuspicious : sharedMats.packetNormal
       );
       scene.add(packetMesh);
 
       flowCurvesRef.current.push({
         curve,
         packetMesh,
-        isSuspicious: link.isSuspicious,
-        speed: link.isSuspicious ? 0.007 : 0.004,
+        lineMesh,
+        sourceId: pair.source,
+        targetId: pair.target,
+        isSuspicious: pair.isSuspicious,
+        speed: pair.isSuspicious ? 0.007 : 0.004,
         progress: Math.random()
       });
     });
@@ -685,19 +717,30 @@ export const ThreeInfrastructureViewer: React.FC<ThreeInfrastructureViewerProps>
         }
       });
 
-      // Animate data flow packets
-      if (showDataFlow) {
-        flowCurvesRef.current.forEach((flow) => {
-          flow.progress = (flow.progress + flow.speed) % 1;
+      // Animate 3D data flow packets and connection line highlights
+      flowCurvesRef.current.forEach((flow) => {
+        const isConnectedToSelected = Boolean(selectedNodeId && (flow.sourceId === selectedNodeId || flow.targetId === selectedNodeId));
+        const lMat = flow.lineMesh.material as THREE.LineBasicMaterial;
+
+        if (showDataFlow) {
+          const effectiveSpeed = isConnectedToSelected ? flow.speed * 2.0 : flow.speed;
+          flow.progress = (flow.progress + effectiveSpeed) % 1;
           const pos = flow.curve.getPointAt(flow.progress);
           flow.packetMesh.position.copy(pos);
           flow.packetMesh.visible = true;
-        });
-      } else {
-        flowCurvesRef.current.forEach((flow) => {
+
+          if (isConnectedToSelected) {
+            flow.packetMesh.scale.setScalar(Math.sin(time * 0.015) * 0.35 + 1.4);
+            lMat.opacity = 0.95;
+          } else {
+            flow.packetMesh.scale.setScalar(1.0);
+            lMat.opacity = selectedNodeId ? 0.2 : (flow.isSuspicious ? 0.85 : 0.45);
+          }
+        } else {
           flow.packetMesh.visible = false;
-        });
-      }
+          lMat.opacity = selectedNodeId ? (isConnectedToSelected ? 0.95 : 0.15) : (flow.isSuspicious ? 0.85 : 0.45);
+        }
+      });
 
       // Render Scene
       renderer.render(scene, camera);
