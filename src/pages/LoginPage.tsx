@@ -47,7 +47,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
   
   // Face ID state
   const [isFaceIdModalOpen, setIsFaceIdModalOpen] = useState(false);
-  const [faceIdMode, setFaceIdMode] = useState<'authenticate' | 'enroll'>('authenticate');
+  const [faceIdMode, setFaceIdMode] = useState<'authenticate' | 'enroll' | 'members'>('authenticate');
 
   const handleFaceIdSuccess = async (verifiedEmail: string, verifiedName: string) => {
     setIsFaceIdModalOpen(false);
@@ -278,15 +278,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
               </button>
             </form>
 
-            {/* Face ID Biometric Login Option */}
-            <div className="pt-1">
+            {/* Face ID Biometric Login & Member Registration */}
+            <div className="pt-1 space-y-2">
               <button
                 type="button"
                 onClick={() => {
                   setFaceIdMode('authenticate');
                   setIsFaceIdModalOpen(true);
                 }}
-                className="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-950/80 via-blue-950/80 to-slate-950 hover:from-cyan-900 hover:to-blue-900 border border-cyan-400/60 hover:border-cyan-300 text-cyan-200 font-bold rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer shadow-lg shadow-cyan-950/50 group"
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-950/90 via-blue-950/90 to-slate-950 hover:from-cyan-900 hover:to-blue-900 border border-cyan-400/60 hover:border-cyan-300 text-cyan-200 font-bold rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer shadow-lg shadow-cyan-950/50 group"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 group-hover:scale-110 transition-transform">
@@ -294,13 +294,28 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
                   </div>
                   <div className="text-left">
                     <div className="text-white font-extrabold flex items-center gap-1.5">
-                      <span>Login with Face ID</span>
+                      <span>Scan Face ID to Enter Workspace</span>
                       <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-[9px] font-mono text-cyan-300 font-semibold border border-cyan-500/40">AI Biometrics</span>
                     </div>
-                    <div className="text-[10px] text-cyan-400/80 font-mono">Instant 468-point Facial Recognition</div>
+                    <div className="text-[10px] text-cyan-400/80 font-mono">Instant Facial Recognition Scan</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFaceIdMode('enroll');
+                  setIsFaceIdModalOpen(true);
+                }}
+                className="w-full py-2 px-3 bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/50 text-emerald-300 font-semibold rounded-xl text-xs flex items-center justify-between transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Enroll My Face / Add Team Member</span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400">Register Biometrics &rarr;</span>
               </button>
             </div>
 
@@ -318,19 +333,19 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoLogin('analyst@secops-aegis.com', 'SecOps Lead Analyst')}
+                  onClick={() => handleQuickDemoLogin('ram@secops-aegis.com', 'Ram Prasanna (CISO)')}
                   className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-lg text-slate-300 text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <UserIcon className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>SecOps Lead</span>
+                  <span>Ram Prasanna</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleQuickDemoLogin('ciso@secops-aegis.com', 'Chief Information Security Officer')}
+                  onClick={() => handleQuickDemoLogin('analyst@secops-aegis.com', 'SecOps Lead Analyst')}
                   className="py-2 px-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-lg text-slate-300 text-[11px] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>CISO Executive</span>
+                  <span>SecOps Lead</span>
                 </button>
               </div>
             </div>
@@ -342,9 +357,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
           isOpen={isFaceIdModalOpen}
           onClose={() => setIsFaceIdModalOpen(false)}
           onSuccess={handleFaceIdSuccess}
-          mode={faceIdMode}
-          targetEmail={email || 'analyst@secops-aegis.com'}
-          targetName={fullName || 'SecOps Lead Analyst'}
+          initialTab={faceIdMode}
+          targetEmail={email || 'ram@secops-aegis.com'}
+          targetName={fullName || 'Ram Prasanna'}
         />
       </div>
     </div>

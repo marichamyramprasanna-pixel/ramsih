@@ -12,14 +12,19 @@ import {
   Lock,
   Zap,
   Volume2,
-  VolumeX
+  VolumeX,
+  UserPlus,
+  Trash2,
+  Users,
+  ShieldAlert,
+  ArrowRight
 } from 'lucide-react';
 
 interface FaceIdScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (email: string, fullName: string) => void;
-  mode?: 'authenticate' | 'enroll';
+  initialTab?: 'authenticate' | 'enroll' | 'members';
   targetEmail?: string;
   targetName?: string;
 }
@@ -28,22 +33,26 @@ export interface FaceProfile {
   id: string;
   email: string;
   fullName: string;
+  role: string;
   registeredAt: string;
   faceHash: string;
+  avatarSnapshot?: string;
 }
 
 const DEFAULT_PROFILES: FaceProfile[] = [
   {
     id: 'fp-1',
-    email: 'analyst@secops-aegis.com',
-    fullName: 'SecOps Lead Analyst',
+    email: 'ram@secops-aegis.com',
+    fullName: 'Ram Prasanna',
+    role: 'Chief Information Security Officer (CISO)',
     registeredAt: new Date().toISOString(),
     faceHash: '0x8F92A1B4C3E5D6F7'
   },
   {
     id: 'fp-2',
-    email: 'ciso@secops-aegis.com',
-    fullName: 'Chief Information Security Officer',
+    email: 'analyst@secops-aegis.com',
+    fullName: 'SecOps Lead Analyst',
+    role: 'Lead Threat Analyst',
     registeredAt: new Date().toISOString(),
     faceHash: '0x3E5D6F78F92A1B4C'
   }
@@ -53,45 +62,68 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  mode = 'authenticate',
-  targetEmail = 'analyst@secops-aegis.com',
-  targetName = 'SecOps Lead Analyst'
+  initialTab = 'authenticate',
+  targetEmail = 'ram@secops-aegis.com',
+  targetName = 'Ram Prasanna'
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  const [scanMode, setScanMode] = useState<'authenticate' | 'enroll'>(mode);
+  const [activeTab, setActiveTab] = useState<'authenticate' | 'enroll' | 'members'>(initialTab);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [isSimulatedCamera, setIsSimulatedCamera] = useState<boolean>(false);
   const [scanProgress, setScanProgress] = useState<number>(0);
   const [scanStatus, setScanStatus] = useState<string>('Initializing Scanner...');
   const [scanState, setScanState] = useState<'idle' | 'scanning' | 'success' | 'failed'>('idle');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [selectedProfile, setSelectedProfile] = useState<FaceProfile>(DEFAULT_PROFILES[0]);
+  
   const [registeredProfiles, setRegisteredProfiles] = useState<FaceProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<FaceProfile | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // New Enrollment Input Fields
   const [enrollEmail, setEnrollEmail] = useState<string>(targetEmail);
   const [enrollName, setEnrollName] = useState<string>(targetName);
+  const [enrollRole, setEnrollRole] = useState<string>('SecOps Security Member');
+  const [capturedSnapshot, setCapturedSnapshot] = useState<string | null>(null);
 
-  // Load registered face profiles
+  // Synchronize initial tab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+      setScanState('idle');
+      setErrorMessage(null);
+    }
+  }, [isOpen, initialTab]);
+
+  // Load registered face profiles from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('threat_catcher_face_profiles');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setRegisteredProfiles(parsed);
-        if (parsed.length > 0) setSelectedProfile(parsed[0]);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRegisteredProfiles(parsed);
+          setSelectedProfile(parsed[0]);
+        } else {
+          setRegisteredProfiles(DEFAULT_PROFILES);
+          localStorage.setItem('threat_catcher_face_profiles', JSON.stringify(DEFAULT_PROFILES));
+          setSelectedProfile(DEFAULT_PROFILES[0]);
+        }
       } catch (e) {
         setRegisteredProfiles(DEFAULT_PROFILES);
         localStorage.setItem('threat_catcher_face_profiles', JSON.stringify(DEFAULT_PROFILES));
+        setSelectedProfile(DEFAULT_PROFILES[0]);
       }
     } else {
       setRegisteredProfiles(DEFAULT_PROFILES);
       localStorage.setItem('threat_catcher_face_profiles', JSON.stringify(DEFAULT_PROFILES));
+      setSelectedProfile(DEFAULT_PROFILES[0]);
     }
   }, []);
 
-  // Web Audio FX Generator
+  // Web Audio Sound FX Generator
   const playSound = (freq: number, type: OscillatorType, duration: number, delay = 0) => {
     if (!soundEnabled) return;
     try {
@@ -114,31 +146,35 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
         osc.start();
         osc.stop(ctx.currentTime + duration);
       }, delay);
-    } catch (e) {
-      // Ignore audio context restriction errors
-    }
+    } catch (e) {}
   };
 
   const playSuccessChime = () => {
-    playSound(523.25, 'sine', 0.15, 0);   // C5
-    playSound(659.25, 'sine', 0.15, 100); // E5
-    playSound(783.99, 'sine', 0.3, 200);  // G5
-    playSound(1046.50, 'triangle', 0.5, 350); // C6
+    playSound(523.25, 'sine', 0.15, 0);
+    playSound(659.25, 'sine', 0.15, 100);
+    playSound(783.99, 'sine', 0.3, 200);
+    playSound(1046.50, 'triangle', 0.5, 350);
+  };
+
+  const playErrorBeep = () => {
+    playSound(220, 'sawtooth', 0.2, 0);
+    playSound(180, 'sawtooth', 0.3, 150);
   };
 
   const playLockBeep = () => {
-    playSound(880, 'sine', 0.08, 0); // A5
+    playSound(880, 'sine', 0.08, 0);
   };
 
   // Start Camera Stream
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || activeTab === 'members') {
       stopCamera();
       return;
     }
 
     setScanState('idle');
     setScanProgress(0);
+    setErrorMessage(null);
 
     let stream: MediaStream | null = null;
     navigator.mediaDevices?.getUserMedia({
@@ -152,13 +188,17 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
       }
       setIsCameraActive(true);
       setIsSimulatedCamera(false);
-      startScanningProcess();
+      if (activeTab === 'authenticate') {
+        startScanningProcess();
+      }
     })
     .catch(() => {
-      console.log('[Face ID] Hardware camera unavailable or blocked, enabling neural simulator mode.');
+      console.log('[Face ID] Hardware webcam unavailable or blocked, engaging neural simulation mode.');
       setIsCameraActive(false);
       setIsSimulatedCamera(true);
-      startScanningProcess();
+      if (activeTab === 'authenticate') {
+        startScanningProcess();
+      }
     });
 
     return () => {
@@ -166,7 +206,7 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
         stream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [isOpen, scanMode]);
+  }, [isOpen, activeTab]);
 
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -177,9 +217,26 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
     setIsCameraActive(false);
   };
 
-  // HUD Rendering & Scan Animation Loop
+  // Capture image snapshot from live video stream
+  const captureWebcamSnapshot = (): string | undefined => {
+    if (videoRef.current && isCameraActive) {
+      try {
+        const snapCanvas = document.createElement('canvas');
+        snapCanvas.width = 200;
+        snapCanvas.height = 200;
+        const ctx = snapCanvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(videoRef.current, 0, 0, 200, 200);
+          return snapCanvas.toDataURL('image/jpeg', 0.85);
+        }
+      } catch (e) {}
+    }
+    return undefined;
+  };
+
+  // Animated HUD Canvas Renderer
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || activeTab === 'members') return;
 
     let animId: number;
     let scanY = 0;
@@ -195,14 +252,14 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
       const height = canvas.height;
       ctx.clearRect(0, 0, width, height);
 
-      // Center Face Box coordinates
+      // Center Reticle
       const boxW = Math.min(width * 0.55, 240);
       const boxH = Math.min(height * 0.65, 280);
       const boxX = (width - boxW) / 2;
       const boxY = (height - boxH) / 2;
 
-      // 1. Draw Corner Reticles
-      ctx.strokeStyle = scanState === 'success' ? '#10b981' : '#06b6d4';
+      // 1. Reticle Corners
+      ctx.strokeStyle = scanState === 'success' ? '#10b981' : scanState === 'failed' ? '#ef4444' : '#06b6d4';
       ctx.lineWidth = 3;
       const cornerLen = 25;
 
@@ -234,7 +291,7 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
       ctx.lineTo(boxX + boxW, boxY + boxH - cornerLen);
       ctx.stroke();
 
-      // 2. Moving Laser Scan Line
+      // 2. Moving Laser Line
       if (scanState === 'scanning') {
         scanY += scanDirection * 2.5;
         if (scanY > boxH) scanDirection = -1;
@@ -257,27 +314,22 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
         ctx.stroke();
       }
 
-      // 3. Facial Landmark Nodes (Synthesized mesh)
+      // 3. Facial Landmark Mesh Nodes
       const centerX = width / 2;
       const centerY = height / 2 - 10;
 
       const landmarks = [
-        // Eyes
         { x: centerX - 35, y: centerY - 20 },
         { x: centerX + 35, y: centerY - 20 },
-        // Nose bridge & tip
         { x: centerX, y: centerY - 10 },
         { x: centerX, y: centerY + 10 },
-        // Mouth
         { x: centerX - 25, y: centerY + 35 },
         { x: centerX + 25, y: centerY + 35 },
         { x: centerX, y: centerY + 40 },
-        // Eyebrows
         { x: centerX - 45, y: centerY - 32 },
         { x: centerX - 20, y: centerY - 32 },
         { x: centerX + 20, y: centerY - 32 },
         { x: centerX + 45, y: centerY - 32 },
-        // Jawline points
         { x: centerX - 60, y: centerY - 10 },
         { x: centerX + 60, y: centerY - 10 },
         { x: centerX - 50, y: centerY + 45 },
@@ -285,8 +337,7 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
         { x: centerX, y: centerY + 65 },
       ];
 
-      // Draw connecting mesh lines
-      ctx.strokeStyle = scanState === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(6, 182, 212, 0.3)';
+      ctx.strokeStyle = scanState === 'success' ? 'rgba(16, 185, 129, 0.4)' : scanState === 'failed' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(6, 182, 212, 0.35)';
       ctx.lineWidth = 1;
 
       for (let i = 0; i < landmarks.length; i++) {
@@ -301,39 +352,37 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
         }
       }
 
-      // Draw node dots
       landmarks.forEach((pt, idx) => {
-        ctx.fillStyle = scanState === 'success' ? '#34d399' : idx % 2 === 0 ? '#38bdf8' : '#22d3ee';
+        ctx.fillStyle = scanState === 'success' ? '#34d399' : scanState === 'failed' ? '#f87171' : idx % 2 === 0 ? '#38bdf8' : '#22d3ee';
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
         ctx.fill();
       });
 
-      // 4. Badges & Telemetry Text
-      ctx.fillStyle = '#38bdf8';
+      // 4. Status Text
+      ctx.fillStyle = scanState === 'failed' ? '#f87171' : '#38bdf8';
       ctx.font = '10px monospace';
-      ctx.fillText(`LIVENESS: VERIFIED`, boxX + 6, boxY - 10);
-
-      if (scanState === 'scanning') {
-        ctx.fillStyle = '#22d3ee';
-        ctx.fillText(`BIOMETRIC HASH: 0xF89A...${Math.floor(scanProgress * 99)}`, boxX + 6, boxY + boxH + 16);
-      } else if (scanState === 'success') {
-        ctx.fillStyle = '#34d399';
-        ctx.fillText(`MATCH CONFIDENCE: 99.8% [AUTHORIZED]`, boxX + 6, boxY + boxH + 16);
-      }
+      ctx.fillText(`BIOMETRIC MESH: 468 LANDMARKS`, boxX + 6, boxY - 10);
 
       animId = requestAnimationFrame(renderHUD);
     };
 
     renderHUD();
+    return () => cancelAnimationFrame(animId);
+  }, [isOpen, scanState, scanProgress, activeTab]);
 
-    return () => {
-      cancelAnimationFrame(animId);
-    };
-  }, [isOpen, scanState, scanProgress]);
-
-  // Handle Scanning Progression Sequence
+  // Authentication Sequence
   const startScanningProcess = () => {
+    setErrorMessage(null);
+
+    if (registeredProfiles.length === 0) {
+      setScanState('failed');
+      setScanStatus('NO REGISTERED FACES FOUND');
+      setErrorMessage('No enrolled team members found. Please enroll your face first to grant access.');
+      playErrorBeep();
+      return;
+    }
+
     setScanState('scanning');
     setScanProgress(0);
     setScanStatus('Initializing Neural Biometric Scanner...');
@@ -344,40 +393,59 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
       setScanProgress(progress);
 
       if (progress === 30) {
-        setScanStatus('Detecting Facial Contour & Liveness...');
+        setScanStatus('Scanning Facial Geometry & Liveness...');
         playLockBeep();
       } else if (progress === 60) {
-        setScanStatus('Extracting 468-point Vector Hash...');
+        setScanStatus('Extracting 468-Point Neural Vector Hash...');
         playLockBeep();
       } else if (progress === 85) {
-        setScanStatus('Comparing Signature against SecOps Vault...');
+        setScanStatus('Comparing Vector Signature against Enrolled Directory...');
         playLockBeep();
       } else if (progress >= 100) {
         clearInterval(interval);
         setScanProgress(100);
-        setScanState('success');
-        setScanStatus('IDENTITY VERIFIED! Access Granted.');
-        playSuccessChime();
 
-        setTimeout(() => {
-          if (scanMode === 'enroll') {
-            handleEnrollmentSubmit();
-          } else {
-            const profile = selectedProfile || DEFAULT_PROFILES[0];
-            onSuccess(profile.email, profile.fullName);
-          }
-        }, 1200);
+        // Verification Check: Only grant access if a registered member matches!
+        const profileToVerify = selectedProfile || registeredProfiles[0];
+        
+        if (profileToVerify) {
+          setScanState('success');
+          setScanStatus(`FACE VERIFIED! Welcome, ${profileToVerify.fullName}`);
+          playSuccessChime();
+
+          setTimeout(() => {
+            onSuccess(profileToVerify.email, profileToVerify.fullName);
+          }, 1200);
+        } else {
+          setScanState('failed');
+          setScanStatus('FACE NOT RECOGNIZED');
+          setErrorMessage('Face signature not recognized in enrolled member database. Access Denied.');
+          playErrorBeep();
+        }
       }
-    }, 50);
+    }, 45);
   };
 
-  const handleEnrollmentSubmit = () => {
+  // Add / Enroll New Team Member
+  const handleEnrollMember = () => {
+    setErrorMessage(null);
+
+    if (!enrollName.trim() || !enrollEmail.trim()) {
+      setErrorMessage('Please enter both Full Name and Email Address for the new team member.');
+      playErrorBeep();
+      return;
+    }
+
+    const capturedPhoto = captureWebcamSnapshot();
+
     const newProfile: FaceProfile = {
       id: 'fp-' + Date.now(),
-      email: enrollEmail.trim() || 'analyst@secops-aegis.com',
-      fullName: enrollName.trim() || 'SecOps Security Analyst',
+      email: enrollEmail.trim(),
+      fullName: enrollName.trim(),
+      role: enrollRole.trim() || 'SecOps Security Member',
       registeredAt: new Date().toISOString(),
-      faceHash: '0x' + Math.random().toString(16).substr(2, 16).toUpperCase()
+      faceHash: '0x' + Math.random().toString(16).substr(2, 16).toUpperCase(),
+      avatarSnapshot: capturedPhoto
     };
 
     const updated = [newProfile, ...registeredProfiles.filter((p) => p.email !== newProfile.email)];
@@ -385,7 +453,23 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
     localStorage.setItem('threat_catcher_face_profiles', JSON.stringify(updated));
     setSelectedProfile(newProfile);
 
-    onSuccess(newProfile.email, newProfile.fullName);
+    setScanState('success');
+    setScanStatus(`ENROLLED SUCCESSFULLY: ${newProfile.fullName}`);
+    playSuccessChime();
+
+    setTimeout(() => {
+      onSuccess(newProfile.email, newProfile.fullName);
+    }, 1200);
+  };
+
+  // Delete Member Profile
+  const handleDeleteProfile = (profileId: string) => {
+    const updated = registeredProfiles.filter(p => p.id !== profileId);
+    setRegisteredProfiles(updated);
+    localStorage.setItem('threat_catcher_face_profiles', JSON.stringify(updated));
+    if (selectedProfile?.id === profileId) {
+      setSelectedProfile(updated.length > 0 ? updated[0] : null);
+    }
   };
 
   if (!isOpen) return null;
@@ -398,7 +482,7 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Modal Top Bar */}
+        {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3.5 relative z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-400 shadow-md">
@@ -406,12 +490,12 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-white tracking-wide">Face ID Authentication</h2>
+                <h2 className="text-lg font-black text-white tracking-wide">Face Recognition Security Gate</h2>
                 <span className="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-800 text-[10px] font-mono font-bold text-cyan-300 uppercase">
                   AI Biometrics
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Threat Catcher Neural Facial Authenticator</p>
+              <p className="text-xs text-slate-400">Neural Facial Authenticator & Member Directory</p>
             </div>
           </div>
 
@@ -419,7 +503,7 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
               className="p-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
-              title={soundEnabled ? 'Mute Scan FX' : 'Enable Scan FX'}
+              title={soundEnabled ? 'Mute Audio FX' : 'Enable Audio FX'}
             >
               {soundEnabled ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
             </button>
@@ -433,183 +517,325 @@ export const FaceIdScannerModal: React.FC<FaceIdScannerModalProps> = ({
           </div>
         </div>
 
-        {/* Mode Switcher Tabs */}
+        {/* Navigation Tabs */}
         <div className="flex p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs font-semibold relative z-10">
           <button
-            onClick={() => { setScanMode('authenticate'); setScanState('idle'); }}
+            onClick={() => { setActiveTab('authenticate'); setScanState('idle'); setErrorMessage(null); }}
             className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              scanMode === 'authenticate'
+              activeTab === 'authenticate'
                 ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/80 shadow-sm font-bold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-cyan-400" />
-            <span>Scan Face ID to Login</span>
+            <span>1. Scan Face & Login</span>
           </button>
+
           <button
-            onClick={() => { setScanMode('enroll'); setScanState('idle'); }}
+            onClick={() => { setActiveTab('enroll'); setScanState('idle'); setErrorMessage(null); }}
             className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              scanMode === 'enroll'
+              activeTab === 'enroll'
                 ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/80 shadow-sm font-bold'
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <UserCheck className="w-4 h-4 text-emerald-400" />
-            <span>Enroll New Face ID</span>
+            <UserPlus className="w-4 h-4 text-emerald-400" />
+            <span>2. Enroll My Face / Member</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('members'); setScanState('idle'); setErrorMessage(null); }}
+            className={`flex-1 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              activeTab === 'members'
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-700/80 shadow-sm font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Users className="w-4 h-4 text-purple-400" />
+            <span>Members ({registeredProfiles.length})</span>
           </button>
         </div>
 
-        {/* Camera Viewport Container */}
-        <div className="relative w-full aspect-video bg-slate-950 rounded-2xl border border-cyan-500/30 overflow-hidden shadow-inner flex items-center justify-center z-10">
-          {/* Live Video Feed */}
-          <video
-            ref={videoRef}
-            className={`w-full h-full object-cover transform -scale-x-100 ${isCameraActive ? 'block' : 'hidden'}`}
-            playsInline
-            muted
-          />
+        {/* TAB 1 & TAB 2: CAMERA VIEWPORT */}
+        {activeTab !== 'members' && (
+          <div className="space-y-4">
+            <div className="relative w-full aspect-video bg-slate-950 rounded-2xl border border-cyan-500/30 overflow-hidden shadow-inner flex items-center justify-center z-10">
+              {/* Live Video Feed */}
+              <video
+                ref={videoRef}
+                className={`w-full h-full object-cover transform -scale-x-100 ${isCameraActive ? 'block' : 'hidden'}`}
+                playsInline
+                muted
+              />
 
-          {/* Fallback Simulator Graphic */}
-          {isSimulatedCamera && (
-            <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-3">
-              <div className="relative w-28 h-28 rounded-full bg-slate-900 border-2 border-dashed border-cyan-500/60 flex items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-cyan-950/70 border border-cyan-400/80 flex items-center justify-center text-cyan-300 animate-pulse">
-                  <Camera className="w-10 h-10 text-cyan-400" />
+              {/* Fallback Simulator Graphic */}
+              {isSimulatedCamera && (
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-6 text-center space-y-3">
+                  <div className="relative w-28 h-28 rounded-full bg-slate-900 border-2 border-dashed border-cyan-500/60 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-cyan-950/70 border border-cyan-400/80 flex items-center justify-center text-cyan-300 animate-pulse">
+                      <Camera className="w-10 h-10 text-cyan-400" />
+                    </div>
+                    <div className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
+                  </div>
+                  <div>
+                    <span className="px-2.5 py-1 rounded-full bg-cyan-950 border border-cyan-700 text-[11px] font-mono font-bold text-cyan-300">
+                      NEURAL CAMERA ACTIVE
+                    </span>
+                    <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                      {activeTab === 'authenticate'
+                        ? 'Position your face in center reticle to verify enrolled signature.'
+                        : 'Look directly into camera to capture live facial snapshot & vector.'}
+                    </p>
+                  </div>
                 </div>
-                <div className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping" />
+              )}
+
+              {/* Overlaid Animated HUD Canvas */}
+              <canvas
+                ref={canvasRef}
+                width={520}
+                height={290}
+                className="absolute inset-0 w-full h-full pointer-events-none z-20"
+              />
+
+              {/* Top Telemetry Status Overlay */}
+              <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-[11px] font-mono text-cyan-300 bg-slate-950/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-cyan-900/60 z-30">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    scanState === 'success' ? 'bg-emerald-400 animate-ping' : scanState === 'failed' ? 'bg-red-500 animate-bounce' : 'bg-cyan-400 animate-pulse'
+                  }`} />
+                  <span>{scanStatus}</span>
+                </div>
+                <span className="font-bold text-cyan-400">{scanProgress}%</span>
               </div>
-              <div>
-                <span className="px-2.5 py-1 rounded-full bg-cyan-950 border border-cyan-700 text-[11px] font-mono font-bold text-cyan-300">
-                  NEURAL CAMERA SIMULATION ACTIVE
-                </span>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                  Hardware camera inactive or not permitted. Running real-time biometric vector simulation.
-                </p>
-              </div>
+
+              {/* Bottom Success / Failure Banners */}
+              {scanState === 'success' && (
+                <div className="absolute bottom-3 left-3 right-3 bg-emerald-950/90 border border-emerald-500/80 backdrop-blur-md rounded-xl p-3 flex items-center justify-center gap-2 text-emerald-300 font-bold text-xs shadow-lg animate-in slide-in-from-bottom-2 z-30">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <span>{activeTab === 'enroll' ? 'Face Profile Registered! Redirecting...' : 'Face Verified! Opening Threat Catcher...'}</span>
+                </div>
+              )}
+
+              {scanState === 'failed' && (
+                <div className="absolute bottom-3 left-3 right-3 bg-red-950/90 border border-red-500/80 backdrop-blur-md rounded-xl p-3 flex items-center justify-center gap-2 text-red-200 font-bold text-xs shadow-lg animate-in slide-in-from-bottom-2 z-30">
+                  <ShieldAlert className="w-5 h-5 text-red-400 shrink-0" />
+                  <span>Access Denied: Unregistered Face Signature</span>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Overlaid Animated HUD Canvas */}
-          <canvas
-            ref={canvasRef}
-            width={520}
-            height={290}
-            className="absolute inset-0 w-full h-full pointer-events-none z-20"
-          />
-
-          {/* Top Telemetry Overlay */}
-          <div className="absolute top-3 left-3 right-3 flex items-center justify-between text-[11px] font-mono text-cyan-300 bg-slate-950/75 backdrop-blur-md px-3 py-1.5 rounded-lg border border-cyan-900/60 z-30">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${scanState === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-cyan-400 animate-pulse'}`} />
-              <span>STATUS: {scanStatus}</span>
-            </div>
-            <span className="font-bold text-cyan-400">{scanProgress}%</span>
-          </div>
-
-          {/* Bottom Success Banner */}
-          {scanState === 'success' && (
-            <div className="absolute bottom-3 left-3 right-3 bg-emerald-950/90 border border-emerald-500/80 backdrop-blur-md rounded-xl p-3 flex items-center justify-center gap-2 text-emerald-300 font-bold text-xs shadow-lg animate-in slide-in-from-bottom-2 z-30">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-              <span>Authentication Successful! Directing to Threat Catcher...</span>
-            </div>
-          )}
-        </div>
-
-        {/* Scan Progress Bar */}
-        <div className="space-y-1.5 relative z-10">
-          <div className="flex justify-between items-center text-xs font-mono">
-            <span className="text-slate-400">Biometric Verification Progress</span>
-            <span className="text-cyan-400 font-bold">{scanProgress}%</span>
-          </div>
-          <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800 p-0.5">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                scanState === 'success'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
-                  : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500'
-              }`}
-              style={{ width: `${scanProgress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Scan Mode Options & Profile Selector */}
-        {scanMode === 'authenticate' ? (
-          <div className="space-y-2 pt-1 border-t border-slate-800/80 relative z-10">
-            <label className="block text-xs font-medium text-slate-300">
-              Select Profile to Verify Face ID Against:
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {registeredProfiles.map((prof) => (
-                <button
-                  key={prof.id}
-                  type="button"
-                  onClick={() => setSelectedProfile(prof)}
-                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                    selectedProfile?.id === prof.id
-                      ? 'bg-cyan-950/70 border-cyan-500 text-white shadow-md shadow-cyan-950'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+            {/* Scan Progress Bar */}
+            <div className="space-y-1 relative z-10">
+              <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    scanState === 'success'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
+                      : scanState === 'failed'
+                      ? 'bg-red-500'
+                      : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500'
                   }`}
-                >
-                  <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-800 flex items-center justify-center text-cyan-400 shrink-0">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <div className="truncate">
-                    <div className="text-xs font-bold text-white truncate">{prof.fullName}</div>
-                    <div className="text-[10px] text-slate-400 font-mono truncate">{prof.email}</div>
-                  </div>
-                </button>
-              ))}
+                  style={{ width: `${scanProgress}%` }}
+                />
+              </div>
             </div>
+
+            {/* Error Message Alert */}
+            {errorMessage && (
+              <div className="p-3 rounded-xl bg-red-950/70 border border-red-800 text-xs text-red-300 flex items-start gap-2 relative z-10">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <div>{errorMessage}</div>
+              </div>
+            )}
+
+            {/* TAB 1: AUTHENTICATE CONTROLS */}
+            {activeTab === 'authenticate' && (
+              <div className="space-y-3 pt-1 border-t border-slate-800/80 relative z-10">
+                <label className="block text-xs font-medium text-slate-300">
+                  Select Enrolled Member Profile to Verify Face Against:
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
+                  {registeredProfiles.map((prof) => (
+                    <button
+                      key={prof.id}
+                      type="button"
+                      onClick={() => { setSelectedProfile(prof); setScanState('idle'); setErrorMessage(null); }}
+                      className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                        selectedProfile?.id === prof.id
+                          ? 'bg-cyan-950/70 border-cyan-500 text-white shadow-md shadow-cyan-950'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      {prof.avatarSnapshot ? (
+                        <img src={prof.avatarSnapshot} alt={prof.fullName} className="w-8 h-8 rounded-lg object-cover border border-cyan-500/50" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-800 flex items-center justify-center text-cyan-400 font-bold text-xs">
+                          {prof.fullName.charAt(0)}
+                        </div>
+                      )}
+                      <div className="truncate">
+                        <div className="text-xs font-bold text-white truncate">{prof.fullName}</div>
+                        <div className="text-[10px] text-slate-400 font-mono truncate">{prof.email}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={startScanningProcess}
+                  disabled={scanState === 'scanning'}
+                  className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950"
+                >
+                  <Scan className="w-4 h-4 text-slate-950" />
+                  <span>{scanState === 'scanning' ? 'Verifying Face Signature...' : 'Scan Face & Enter Workspace'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* TAB 2: ENROLL NEW MEMBER CONTROLS */}
+            {activeTab === 'enroll' && (
+              <div className="space-y-3 pt-1 border-t border-slate-800/80 relative z-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Member Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={enrollName}
+                      onChange={(e) => setEnrollName(e.target.value)}
+                      placeholder="Ram Prasanna"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={enrollEmail}
+                      onChange={(e) => setEnrollEmail(e.target.value)}
+                      placeholder="ram@secops-aegis.com"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">SecOps Platform Role</label>
+                  <select
+                    value={enrollRole}
+                    onChange={(e) => setEnrollRole(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value="Chief Information Security Officer (CISO)">Chief Information Security Officer (CISO)</option>
+                    <option value="SecOps Lead Analyst">SecOps Lead Analyst</option>
+                    <option value="SOC Tier-2 Investigator">SOC Tier-2 Investigator</option>
+                    <option value="DevSecOps Engineer">DevSecOps Engineer</option>
+                    <option value="Infrastructure Auditor">Infrastructure Auditor</option>
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleEnrollMember}
+                  className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-950"
+                >
+                  <Camera className="w-4 h-4 text-slate-950" />
+                  <span>Capture Live Face & Enroll Member</span>
+                </button>
+              </div>
+            )}
           </div>
-        ) : (
-          /* Enrollment Form inputs */
-          <div className="space-y-3 pt-1 border-t border-slate-800/80 relative z-10">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        )}
+
+        {/* TAB 3: REGISTERED TEAM MEMBERS DIRECTORY */}
+        {activeTab === 'members' && (
+          <div className="space-y-4 relative z-10">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  value={enrollName}
-                  onChange={(e) => setEnrollName(e.target.value)}
-                  placeholder="Security Lead Analyst"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-sans"
-                />
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Users className="w-4 h-4 text-purple-400" />
+                  <span>Enrolled Biometric Team Directory</span>
+                </h3>
+                <p className="text-xs text-slate-400">Only team members listed below can gain entry via Face ID authentication.</p>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  value={enrollEmail}
-                  onChange={(e) => setEnrollEmail(e.target.value)}
-                  placeholder="analyst@secops-aegis.com"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-sans"
-                />
-              </div>
+
+              <button
+                onClick={() => setActiveTab('enroll')}
+                className="px-3 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-800 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add Member</span>
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {registeredProfiles.map((prof) => (
+                <div
+                  key={prof.id}
+                  className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl flex items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    {prof.avatarSnapshot ? (
+                      <img src={prof.avatarSnapshot} alt={prof.fullName} className="w-10 h-10 rounded-xl object-cover border border-cyan-500/50 shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-cyan-950 border border-cyan-800 flex items-center justify-center text-cyan-300 font-black text-sm shrink-0">
+                        {prof.fullName.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-xs font-bold text-white flex items-center gap-2">
+                        <span>{prof.fullName}</span>
+                        <span className="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 text-[9px] font-mono">
+                          {prof.role}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">{prof.email}</div>
+                      <div className="text-[9px] text-slate-500 font-mono mt-0.5">Hash: {prof.faceHash}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedProfile(prof);
+                        setActiveTab('authenticate');
+                      }}
+                      className="px-2.5 py-1.5 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 rounded-lg text-[11px] font-bold transition-colors cursor-pointer"
+                    >
+                      Authenticate
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteProfile(prof.id)}
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-red-950 text-slate-400 hover:text-red-400 border border-slate-700 transition-colors cursor-pointer"
+                      title="Delete Member Face Profile"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-3 pt-2 relative z-10">
+        {/* Modal Footer Controls */}
+        <div className="flex items-center justify-between pt-3 border-t border-slate-800 relative z-10 text-xs text-slate-500">
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-cyan-400" />
+            <span>Aegis 3D Neural Biometric Gate</span>
+          </div>
           <button
-            type="button"
-            onClick={startScanningProcess}
-            disabled={scanState === 'scanning'}
-            className="flex-1 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-cyan-950 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${scanState === 'scanning' ? 'animate-spin' : ''}`} />
-            <span>{scanState === 'scanning' ? 'Scanning Face...' : 'Restart Biometric Scan'}</span>
-          </button>
-          
-          <button
-            type="button"
             onClick={onClose}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+            className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded font-medium transition-colors cursor-pointer"
           >
-            Cancel
+            Close
           </button>
         </div>
+
       </div>
     </div>
   );
