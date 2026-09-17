@@ -138,7 +138,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         {/* Left Hero Content */}
         <div className="lg:col-span-5 flex flex-col justify-between p-6 sm:p-8 bg-gradient-to-b from-[#080d19] via-[#060912] to-[#04060c] border border-cyan-500/30 rounded-3xl shadow-2xl relative overflow-hidden">
           
-          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl bg-orb-cyan pointer-events-none" />
 
           <div className="space-y-6 relative z-10">
             {/* Status Pill */}
@@ -382,7 +382,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           {FEATURE_CAROUSEL_ITEMS.slice(carouselIndex, carouselIndex + 3).map((item, idx) => (
             <div
               key={idx}
-              className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-cyan-500/40 transition-all space-y-2.5"
+              className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800 card-cyber-glow space-y-2.5"
             >
               <div className="w-10 h-10 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center">
                 {item.icon}

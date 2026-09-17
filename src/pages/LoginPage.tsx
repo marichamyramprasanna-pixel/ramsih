@@ -20,6 +20,7 @@ import { useAuth } from '../context/AuthContext';
 import { checkPasswordStrength } from '../utils/security';
 import { FaceIdScannerModal } from '../components/auth/FaceIdScannerModal';
 import { AegisLogo } from '../components/common/AegisLogo';
+import { CyberBackgroundCanvas } from '../components/common/CyberBackgroundCanvas';
 
 interface LoginPageProps {
   onNavigate: (route: string) => void;
@@ -103,9 +104,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] bg-[#04060b] flex items-center justify-center p-4 relative overflow-hidden font-sans">
-      {/* Background Glowing Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Background Matrix Particle Canvas & Laser Sweep */}
+      <CyberBackgroundCanvas />
+
+      {/* Animated Floating Background Orbs */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl bg-orb-cyan pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl bg-orb-blue pointer-events-none" />
 
       <div className="w-full max-w-md bg-[#080d17]/90 border border-cyan-500/30 rounded-2xl shadow-2xl backdrop-blur-2xl p-6 sm:p-8 space-y-6 relative z-10 animate-in fade-in zoom-in-95 duration-200">
         

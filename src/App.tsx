@@ -30,6 +30,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/auth/AuthModal';
 import { DeviceByDeviceScannerModal } from './components/scanner/DeviceByDeviceScannerModal';
 import { ScrollProgressBar, ScrollToTopButton, useScrollReveal } from './components/common/ScrollEffects';
+import { CyberBackgroundCanvas } from './components/common/CyberBackgroundCanvas';
 
 export function AppContent() {
   const { user, loading } = useAuth();
@@ -161,7 +162,10 @@ export function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#05070c] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#05070c] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950 relative overflow-hidden">
+      {/* Animated Cyber Background Canvas (Particles, Matrix Grid, Laser Scan) */}
+      <CyberBackgroundCanvas reducedMotion={preferences.reducedMotion} />
+
       {/* Scroll Progress Bar at Top of Viewport */}
       <ScrollProgressBar targetContainerId="main-content-scroll" />
 
