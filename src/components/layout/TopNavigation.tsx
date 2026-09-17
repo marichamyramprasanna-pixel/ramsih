@@ -16,6 +16,7 @@ import { EnterpriseRiskSummary, InfrastructureNode, AnomalyDetection, Investigat
 import { useAuth } from '../../context/AuthContext';
 import { GlobalSearchModal } from '../common/GlobalSearchModal';
 import { NotificationCenterDropdown } from '../common/NotificationCenterDropdown';
+import { AegisLogo } from '../common/AegisLogo';
 
 interface TopNavigationProps {
   currentRoute: string;
@@ -57,22 +58,9 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
         <button
           id="btn-brand-home"
           onClick={() => onNavigate('/')}
-          className="flex items-center gap-2.5 group text-left focus:outline-none"
+          className="flex items-center group text-left focus:outline-none cursor-pointer"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border border-cyan-400/50 flex items-center justify-center font-mono font-black text-xs group-hover:border-cyan-300 transition-colors shadow-sm shadow-cyan-950">
-            <span className="text-cyan-400 text-sm font-black">T</span><span className="text-blue-400 text-sm font-black">C</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold tracking-tight text-white text-base">
-                <span className="text-lg text-cyan-400 font-black">T</span>hreat <span className="text-lg text-cyan-400 font-black">C</span>atcher
-              </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 font-mono border border-cyan-800/60 font-bold">
-                T Catcher
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 hidden sm:block">Interactive Cybersecurity & Risk Visualizer</p>
-          </div>
+          <AegisLogo size="sm" />
         </button>
       </div>
 

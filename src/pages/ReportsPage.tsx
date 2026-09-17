@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { EnterpriseRiskSummary, InfrastructureNode } from '../types';
 import { formatRiskScore } from '../utils/riskCalculator';
+import { AegisLogo } from '../components/common/AegisLogo';
 
 interface ReportsPageProps {
   riskSummary: EnterpriseRiskSummary;
@@ -204,10 +205,8 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({
         {/* Document Header & Metadata Seal */}
         <div className="flex items-start justify-between border-b border-slate-800 print:border-black pb-6">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-black tracking-tight text-white print:text-black text-2xl">
-                <span className="text-cyan-400 print:text-black font-black">AEGIS 3D</span> THREAT CATCHER
-              </span>
+            <div className="flex items-center gap-3">
+              <AegisLogo size="md" />
               <span className="text-[10px] px-2.5 py-0.5 rounded bg-cyan-950 text-cyan-300 font-mono font-bold border border-cyan-800 print:border-black print:text-black">
                 CONFIDENTIAL CISO AUDIT
               </span>

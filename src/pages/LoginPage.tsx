@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { checkPasswordStrength } from '../utils/security';
 import { FaceIdScannerModal } from '../components/auth/FaceIdScannerModal';
+import { AegisLogo } from '../components/common/AegisLogo';
 
 interface LoginPageProps {
   onNavigate: (route: string) => void;
@@ -109,16 +110,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate }) => {
       <div className="w-full max-w-md bg-[#080d17]/90 border border-cyan-500/30 rounded-2xl shadow-2xl backdrop-blur-2xl p-6 sm:p-8 space-y-6 relative z-10 animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header Logo */}
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border border-cyan-400/50 flex items-center justify-center text-cyan-300 mx-auto shadow-lg shadow-cyan-950 font-mono font-black text-lg">
-            <span className="text-cyan-400 font-black">T</span><span className="text-blue-400 font-black">C</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center justify-center gap-1.5">
-              <span className="text-cyan-400 font-black">T</span>hreat <span className="text-cyan-400 font-black">C</span>atcher
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">Interactive Cybersecurity & Risk Visualizer</p>
-          </div>
+        <div className="flex justify-center py-2">
+          <AegisLogo size="lg" />
         </div>
 
         {/* Currently Authenticated State Banner */}

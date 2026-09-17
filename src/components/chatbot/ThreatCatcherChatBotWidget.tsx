@@ -23,6 +23,7 @@ import {
   EnterpriseRiskSummary, 
   RemediationRecommendation 
 } from '../../types';
+import { AegisLogo } from '../common/AegisLogo';
 import { 
   formatRiskScore, 
   isValidRiskScore, 
@@ -330,27 +331,9 @@ The current risk score is calculated from behavioral anomalies, compromise proba
       {!isOpen && (
         <button
           onClick={() => { setIsOpen(true); setIsMinimized(false); }}
-          className="fixed bottom-6 right-6 z-40 p-3 bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-slate-950 font-bold rounded-2xl shadow-2xl shadow-cyan-950/60 border border-cyan-300 flex items-center gap-3 transition-all hover:scale-105 cursor-pointer group animate-in fade-in zoom-in-90 print:hidden"
+          className="fixed bottom-6 right-6 z-40 p-3 bg-[#080d19]/95 hover:bg-slate-900 border border-cyan-400/80 rounded-2xl shadow-2xl shadow-cyan-950/80 flex items-center gap-3 transition-all hover:scale-105 cursor-pointer group animate-in fade-in zoom-in-90 print:hidden backdrop-blur-xl"
         >
-          <div className="relative">
-            <div className="w-10 h-10 rounded-xl bg-slate-950/90 border border-cyan-400 flex items-center justify-center text-cyan-300 font-mono font-black text-sm shadow-md">
-              <span className="text-cyan-400">T</span><span className="text-blue-400">C</span>
-            </div>
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-950 animate-pulse" />
-          </div>
-
-          <div className="text-left pr-1 hidden sm:block">
-            <div className="text-xs font-black text-white flex items-center gap-1.5">
-              <span>Threat Catcher</span>
-              <span className="px-1.5 py-0.2 rounded bg-slate-950 text-[9px] font-mono text-cyan-300 border border-cyan-500/40">
-                AI ChatBot
-              </span>
-            </div>
-            <div className="text-[10px] text-cyan-200/90 font-mono flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-cyan-300 animate-spin" style={{ animationDuration: '4s' }} />
-              <span>Ask OpenRouter LLM...</span>
-            </div>
-          </div>
+          <AegisLogo size="sm" subtitle="AI Assistant" />
 
           {unreadCount > 0 && (
             <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border border-slate-900 animate-bounce">
@@ -369,27 +352,13 @@ The current risk score is calculated from behavioral anomalies, compromise proba
         >
           {/* Header Bar */}
           <div className="p-3.5 bg-slate-950/90 border-b border-cyan-900/60 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border border-cyan-400/60 flex items-center justify-center text-cyan-300 font-mono font-black text-xs shadow-md">
-                <span className="text-cyan-400">T</span><span className="text-blue-400">C</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-extrabold text-white tracking-tight">Threat Catcher AI</h3>
-                  <span className="px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-700 text-[9px] font-mono text-cyan-300 font-bold uppercase">
-                    LLM ChatBot
-                  </span>
-                </div>
-                <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
-                  <span>Online • OpenRouter API</span>
-                  {isDemoFallback && (
-                    <span className="ml-1 text-[9px] px-1 py-0.2 bg-amber-950/80 border border-amber-800/80 text-amber-300 rounded">
-                      Demo Telemetry
-                    </span>
-                  )}
-                </div>
-              </div>
+            <div className="flex items-center gap-2">
+              <AegisLogo size="xs" subtitle="AI ChatBot" />
+              {isDemoFallback && (
+                <span className="ml-1 text-[9px] px-1 py-0.2 bg-amber-950/80 border border-amber-800/80 text-amber-300 rounded font-mono">
+                  Demo Telemetry
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-1">
