@@ -38,7 +38,10 @@ export const DetectionsPage: React.FC<DetectionsPageProps> = ({
   });
 
   return (
-    <div className="p-4 lg:p-8 space-y-6 max-w-[1700px] mx-auto font-sans selection:bg-cyan-500 selection:text-slate-950">
+    <div className="p-4 lg:p-8 space-y-6 max-w-[1700px] mx-auto font-sans selection:bg-cyan-500 selection:text-slate-950 relative overflow-hidden">
+      {/* Background Floating Ambient Glowing Orbs */}
+      <div className="absolute top-10 left-10 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl bg-orb-cyan pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-96 h-96 bg-red-600/10 rounded-full blur-3xl bg-orb-blue pointer-events-none" />
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">

@@ -197,7 +197,7 @@ export function AppContent() {
         />
 
         {/* Dynamic Route Content */}
-        <main id="main-content-scroll" className="flex-1 overflow-y-auto bg-gradient-to-b from-[#080b12] to-[#04060a] relative scroll-smooth">
+        <main id="main-content-scroll" className="flex-1 overflow-y-auto bg-gradient-to-b from-[#080b12]/60 via-[#060911]/70 to-[#04060a]/80 backdrop-blur-[1px] relative scroll-smooth">
           {currentRoute === '/' && (
             <OverviewPage
               nodes={nodes}

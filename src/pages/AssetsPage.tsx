@@ -199,7 +199,10 @@ export const AssetsPage: React.FC<AssetsPageProps> = ({
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto">
+    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto relative overflow-hidden">
+      {/* Background Floating Ambient Glowing Orbs */}
+      <div className="absolute top-10 left-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl bg-orb-cyan pointer-events-none" />
+      <div className="absolute bottom-1/3 right-10 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl bg-orb-blue pointer-events-none" />
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 p-4 bg-cyan-950/95 border border-cyan-500/50 rounded-xl shadow-2xl flex items-center gap-3 text-cyan-200 text-xs animate-bounce">
